@@ -11,18 +11,25 @@ local Workspace = game:GetService("Workspace")
 local player = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
--- Limpeza de instâncias e loops anteriores
-if _G.SecureSpeedLoop then _G.SecureSpeedLoop = false task.wait(0.1) end
-if _G.SecureRenderLoop then _G.SecureRenderLoop = false task.wait(0.1) end
-if _G.MainHubInterface then _G.MainHubInterface:Destroy() task.wait(0.2) end
+-- Limpeza agressiva para evitar vazamento de memória (Anti-Lag)
+if _G.SecureSpeedLoop then _G.SecureSpeedLoop = false task.wait(0.05) end
+if _G.SecureRenderLoop then _G.SecureRenderLoop = false task.wait(0.05) end
+if _G.MainHubInterface then _G.MainHubInterface:Destroy() task.wait(0.05) end
 
 pcall(function() RunService:UnbindFromRenderStep("GodzESP_Render") end)
 pcall(function() RunService:UnbindFromRenderStep("AimbotMobileLock") end)
+pcall(function() RunService:UnbindFromRenderStep("GodzSpeed_Render") end)
 
-if _G.ViewCamConnection then 
-    pcall(function() _G.ViewCamConnection:Disconnect() end) 
-    _G.ViewCamConnection = nil 
-end
+-- PATCH DE CORREÇÃO: Limpeza dos eventos de Input
+if _G.MainDragGlobal then pcall(function() _G.MainDragGlobal:Disconnect() end) _G.MainDragGlobal = nil end
+if _G.NoclipGlobalDrag then pcall(function() _G.NoclipGlobalDrag:Disconnect() end) _G.NoclipGlobalDrag = nil end
+if _G.FlyGlobalDrag then pcall(function() _G.FlyGlobalDrag:Disconnect() end) _G.FlyGlobalDrag = nil end
+
+if _G.ViewCamConnection then pcall(function() _G.ViewCamConnection:Disconnect() end) _G.ViewCamConnection = nil end
+if _G.FlyConnectionGodz then pcall(function() _G.FlyConnectionGodz:Disconnect() end) _G.FlyConnectionGodz = nil end
+if _G.FlyPlatformGodz then pcall(function() _G.FlyPlatformGodz:Destroy() end) _G.FlyPlatformGodz = nil end
+if _G.FlyRoundBtn then pcall(function() _G.FlyRoundBtn:Destroy() end) _G.FlyRoundBtn = nil end
+if _G.NoclipRoundBtn then pcall(function() _G.NoclipRoundBtn:Destroy() end) _G.NoclipRoundBtn = nil end
 
 pcall(function()
     Camera.CameraType = Enum.CameraType.Custom
@@ -39,16 +46,19 @@ for _, v in ipairs(game:GetService("CoreGui"):GetChildren()) do
     end
 end
 
-if _G.NoclipRoundBtn then pcall(function() _G.NoclipRoundBtn:Destroy() end) _G.NoclipRoundBtn = nil end
+setgarbagecollection = setgarbagecollection or function() end
+pcall(function() gcinfo() end)
 
--- Variáveis de controle
 local minimizado, paginaAtual = false, 2
 _G.SecureRenderLoop = false
 _G.SecureSpeedLoop = false
 _G.CameraViewActive = false
 _G.NoclipActiveGodz = false
+_G.FlyActiveGodz = false
+_G.FlyingStateGodz = false
 
 _G.AimbotActiveGodz = false
+_G.AimTargetPart = "Head" 
 _G.AimFovValue = 100
 _G.AimTeamCheck = false
 _G.AimKillCheck = false
@@ -60,7 +70,6 @@ _G.EspSkeletonTrack = true
 _G.EspNameTrack = true
 _G.EspHealthTrack = true
 
--- Declaração antecipada de funções
 local atualizarInterface
 local resetarCoresAbas
 
@@ -72,7 +81,6 @@ local function getRandomName()
     return str
 end
 
--- --- CRIAÇÃO DA INTERFACE VISUAL ---
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = getRandomName()
 screenGui.ResetOnSpawn = false
@@ -89,7 +97,6 @@ EspContainer.Parent = CoreGui
 
 if syn and syn.protect_gui then syn.protect_gui(EspContainer) end
 
--- Círculo do FOV
 local fovCircle = Instance.new("Frame")
 fovCircle.Name = "FOVCircle"
 fovCircle.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -97,7 +104,7 @@ fovCircle.Position = UDim2.new(0.5, 0, 0.5, 0)
 fovCircle.Size = UDim2.new(0, _G.AimFovValue, 0, _G.AimFovValue)
 fovCircle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 fovCircle.BackgroundTransparency = 1
-fovCircle.Visible = false
+fovCircle.Visible = false 
 fovCircle.Parent = EspContainer
 
 local fovStroke = Instance.new("UIStroke")
@@ -109,7 +116,13 @@ local fovCorner = Instance.new("UICorner")
 fovCorner.CornerRadius = UDim.new(1, 0)
 fovCorner.Parent = fovCircle
 
--- Janela Principal
+local aimTracer = Instance.new("Frame")
+aimTracer.Name = "AimTracer"
+aimTracer.AnchorPoint = Vector2.new(0.5, 0.5)
+aimTracer.BorderSizePixel = 0
+aimTracer.Visible = false
+aimTracer.Parent = EspContainer
+
 _G.MainFrameGodz = Instance.new("Frame")
 _G.MainFrameGodz.Size = UDim2.new(0, 260, 0, 240)
 _G.MainFrameGodz.Position = UDim2.new(0.05, 0, 0.4, 0)
@@ -122,7 +135,6 @@ local uiCorner = Instance.new("UICorner")
 uiCorner.CornerRadius = UDim.new(0, 10)
 uiCorner.Parent = _G.MainFrameGodz
 
--- Sistema Arrastável
 local dragging, dragInput, dragStart, startPos
 local titleFrame = Instance.new("Frame")
 titleFrame.Size = UDim2.new(1, 0, 0, 30)
@@ -144,7 +156,7 @@ titleFrame.InputChanged:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
 end)
 
-UserInputService.InputChanged:Connect(function(input)
+_G.MainDragGlobal = UserInputService.InputChanged:Connect(function(input)
     if input == dragInput and dragging then
         local delta = input.Position - dragStart
         _G.MainFrameGodz.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
@@ -185,13 +197,12 @@ _G.ContainerFrameGodz.Parent = _G.MainFrameGodz
 
 _G.HubVisualCarregada = true
 
--- Abas de Navegação (Scroll Horizontal)
 local tabsScroll = Instance.new("ScrollingFrame")
 tabsScroll.Size = UDim2.new(0.9, 0, 0, 30)
 tabsScroll.Position = UDim2.new(0.05, 0, 0, 0)
 tabsScroll.BackgroundTransparency = 1
 tabsScroll.BorderSizePixel = 0
-tabsScroll.CanvasSize = UDim2.new(2.4, 0, 0, 0)
+tabsScroll.CanvasSize = UDim2.new(3.2, 0, 0, 0) -- Tamanho aumentado para comportar a 9ª aba
 tabsScroll.ScrollBarThickness = 0
 tabsScroll.ScrollingDirection = Enum.ScrollingDirection.X
 tabsScroll.Parent = _G.ContainerFrameGodz
@@ -226,6 +237,8 @@ _G.BtnAba4Godz = criarBotaoAba("CLASS", 4, 55)
 _G.BtnAba5Godz = criarBotaoAba("VIEW", 5, 45)
 _G.BtnAba6Godz = criarBotaoAba("NOCLIP", 6, 55)
 _G.BtnAba7Godz = criarBotaoAba("AIM", 7, 45)
+_G.BtnAba8Godz = criarBotaoAba("FLY", 8, 45) 
+_G.BtnAba9Godz = criarBotaoAba("TP PLY", 9, 55) -- NOVA ABA ADICIONADA AQUI
 
 _G.StatusLabelGodz = Instance.new("TextLabel")
 _G.StatusLabelGodz.Size = UDim2.new(0.9, 0, 0, 25)
@@ -247,7 +260,6 @@ _G.ContentFrameGodz.Position = UDim2.new(0.05, 0, 0, 62)
 _G.ContentFrameGodz.BackgroundTransparency = 1
 _G.ContentFrameGodz.Parent = _G.ContainerFrameGodz
 
--- Contêineres de conteúdo
 _G.EspScrollFrameGodz = Instance.new("ScrollingFrame")
 _G.EspScrollFrameGodz.Size = UDim2.new(1, 0, 1, -5)
 _G.EspScrollFrameGodz.BackgroundTransparency = 1
@@ -330,7 +342,7 @@ _G.AimScrollFrameGodz = Instance.new("ScrollingFrame")
 _G.AimScrollFrameGodz.Size = UDim2.new(1, 0, 1, -5)
 _G.AimScrollFrameGodz.BackgroundTransparency = 1
 _G.AimScrollFrameGodz.BorderSizePixel = 0
-_G.AimScrollFrameGodz.CanvasSize = UDim2.new(0, 0, 1.8, 0)
+_G.AimScrollFrameGodz.CanvasSize = UDim2.new(0, 0, 2.2, 0) 
 _G.AimScrollFrameGodz.ScrollBarThickness = 2
 _G.AimScrollFrameGodz.ScrollBarImageColor3 = Color3.fromRGB(60, 60, 70)
 _G.AimScrollFrameGodz.Visible = false
@@ -341,6 +353,37 @@ aimLayout.FillDirection = Enum.FillDirection.Vertical
 aimLayout.SortOrder = Enum.SortOrder.LayoutOrder
 aimLayout.Padding = UDim.new(0, 6)
 aimLayout.Parent = _G.AimScrollFrameGodz
+
+_G.FlyScrollFrameGodz = Instance.new("ScrollingFrame")
+_G.FlyScrollFrameGodz.Size = UDim2.new(1, 0, 1, -5)
+_G.FlyScrollFrameGodz.BackgroundTransparency = 1
+_G.FlyScrollFrameGodz.BorderSizePixel = 0
+_G.FlyScrollFrameGodz.CanvasSize = UDim2.new(0, 0, 1.0, 0)
+_G.FlyScrollFrameGodz.ScrollBarThickness = 0
+_G.FlyScrollFrameGodz.Visible = false
+_G.FlyScrollFrameGodz.Parent = _G.ContentFrameGodz
+
+local flyLayout = Instance.new("UIListLayout")
+flyLayout.FillDirection = Enum.FillDirection.Vertical
+flyLayout.SortOrder = Enum.SortOrder.LayoutOrder
+flyLayout.Padding = UDim.new(0, 8)
+flyLayout.Parent = _G.FlyScrollFrameGodz
+
+-- SCROLL DA NOVA ABA 9 (TP PLY)
+_G.TpPlyScrollFrameGodz = Instance.new("ScrollingFrame")
+_G.TpPlyScrollFrameGodz.Size = UDim2.new(1, 0, 1, -5)
+_G.TpPlyScrollFrameGodz.BackgroundTransparency = 1
+_G.TpPlyScrollFrameGodz.BorderSizePixel = 0
+_G.TpPlyScrollFrameGodz.CanvasSize = UDim2.new(0, 0, 1.2, 0)
+_G.TpPlyScrollFrameGodz.ScrollBarThickness = 0
+_G.TpPlyScrollFrameGodz.Visible = false
+_G.TpPlyScrollFrameGodz.Parent = _G.ContentFrameGodz
+
+local tpPlyLayout = Instance.new("UIListLayout")
+tpPlyLayout.FillDirection = Enum.FillDirection.Vertical
+tpPlyLayout.SortOrder = Enum.SortOrder.LayoutOrder
+tpPlyLayout.Padding = UDim.new(0, 8)
+tpPlyLayout.Parent = _G.TpPlyScrollFrameGodz
 
 local function criarBotaoAcao(nome, texto, cor, pai)
     local btn = Instance.new("TextButton")
@@ -353,11 +396,10 @@ local function criarBotaoAcao(nome, texto, cor, pai)
     return btn
 end
 
--- Elementos da aba MAIN
 local SpeedTextBox = Instance.new("TextBox")
 SpeedTextBox.Name = getRandomName()
 SpeedTextBox.Size = UDim2.new(1, 0, 0, 32)
-SpeedTextBox.Position = UDim2.new(0, 0, 0, 5)
+SpeedTextBox.Position = UDim2.new(0, 0, 0, 0)
 SpeedTextBox.BackgroundColor3 = Color3.fromRGB(36, 36, 42)
 SpeedTextBox.BorderSizePixel = 0
 SpeedTextBox.Text = "50"
@@ -372,9 +414,8 @@ stc.CornerRadius = UDim.new(0, 6)
 stc.Parent = SpeedTextBox
 
 _G.BtnToggleSpeedGodz = criarBotaoAcao("BtnToggleSpeed", "SPEED AMORTECIDO: DESATIVADO", Color3.fromRGB(231, 76, 60), _G.ContentFrameGodz)
-_G.BtnToggleSpeedGodz.Position = UDim2.new(0, 0, 0, 42)
+_G.BtnToggleSpeedGodz.Position = UDim2.new(0, 0, 0, 38)
 
--- Botões das outras abas
 _G.BtnToggleESPGodz = criarBotaoAcao("BtnToggleESP", "LIGAR ESP MASTER: DESATIVADO", Color3.fromRGB(231, 76, 60), _G.EspScrollFrameGodz)
 _G.BtnToggleBoxGodz = criarBotaoAcao("BtnToggleBox", "ESP QUADRO 2D: ATIVADO", Color3.fromRGB(46, 204, 113), _G.EspScrollFrameGodz)
 _G.BtnToggleSkeletonGodz = criarBotaoAcao("BtnToggleSkeleton", "ESP SKELETO + HEAD: ATIVADO", Color3.fromRGB(46, 204, 113), _G.EspScrollFrameGodz)
@@ -407,8 +448,8 @@ vtc.Parent = ViewTextBox
 _G.BtnToggleViewGodz = criarBotaoAcao("BtnToggleView", "ASSISTIR JOGADOR", Color3.fromRGB(180, 40, 40), _G.ViewScrollFrameGodz)
 _G.BtnToggleNoclipGodz = criarBotaoAcao("BtnToggleNoclip", "BOTÃO FLUTUANTE NOCLIP: OFF", Color3.fromRGB(231, 76, 60), _G.NoclipScrollFrameGodz)
 
--- Elementos da Aba de Aimbot (Tab 7)
 _G.BtnToggleAimGodz = criarBotaoAcao("BtnToggleAim", "SISTEMA AIMBOT: OFF", Color3.fromRGB(231, 76, 60), _G.AimScrollFrameGodz)
+_G.BtnToggleAimPartGodz = criarBotaoAcao("BtnToggleAimPart", "MIRA FOCADA: CABEÇA", Color3.fromRGB(155, 89, 182), _G.AimScrollFrameGodz) 
 
 local AimFovTextBox = Instance.new("TextBox")
 AimFovTextBox.Size = UDim2.new(1, 0, 0, 32)
@@ -429,9 +470,28 @@ _G.BtnToggleAimTeamGodz = criarBotaoAcao("BtnToggleAimTeam", "TEAM CHECK: OFF", 
 _G.BtnToggleAimKillGodz = criarBotaoAcao("BtnToggleAimKill", "KILL CHECK: OFF", Color3.fromRGB(231, 76, 60), _G.AimScrollFrameGodz)
 _G.BtnToggleAimWallGodz = criarBotaoAcao("BtnToggleAimWall", "WALL CHECK: OFF", Color3.fromRGB(231, 76, 60), _G.AimScrollFrameGodz)
 
+_G.BtnToggleFlyGodz = criarBotaoAcao("BtnToggleFly", "BOTÃO FLUTUANTE FLY: OFF", Color3.fromRGB(231, 76, 60), _G.FlyScrollFrameGodz)
+
+-- UI DA ABA 9 (TP PLY)
+local TpPlayerTextBox = Instance.new("TextBox")
+TpPlayerTextBox.Size = UDim2.new(1, 0, 0, 32)
+TpPlayerTextBox.BackgroundColor3 = Color3.fromRGB(36, 36, 42)
+TpPlayerTextBox.BorderSizePixel = 0
+TpPlayerTextBox.Text = ""
+TpPlayerTextBox.PlaceholderText = "Nome do Alvo..."
+TpPlayerTextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+TpPlayerTextBox.TextSize = 12
+TpPlayerTextBox.Font = Enum.Font.Code
+TpPlayerTextBox.Parent = _G.TpPlyScrollFrameGodz
+
+local tptc = Instance.new("UICorner")
+tptc.CornerRadius = UDim.new(0, 6)
+tptc.Parent = TpPlayerTextBox
+
+_G.BtnTpPlayerGodz = criarBotaoAcao("BtnTpPlayer", "TELEPORTAR (Freeze)", Color3.fromRGB(39, 174, 96), _G.TpPlyScrollFrameGodz)
+
 _G.HubLogicaPronta = true
 
--- --- LÓGICA DO ESP ---
 local cacheESP = {}
 
 local function removerESP(anyPlayerName)
@@ -440,6 +500,12 @@ local function removerESP(anyPlayerName)
             pcall(function() cacheESP[anyPlayerName].Group:Destroy() end)
         end
         cacheESP[anyPlayerName] = nil
+    end
+end
+
+local function clearAllESP()
+    for playerName, _ in pairs(cacheESP) do
+        removerESP(playerName)
     end
 end
 
@@ -536,6 +602,8 @@ local function criarVinculoESP(p)
         T_RL = criarLine(playerGroup)
     }
     
+    local centerLineObj = criarLine(playerGroup)
+    
     cacheESP[p.Name] = {
         Group = playerGroup,
         Box = boxFrame,
@@ -547,6 +615,7 @@ local function criarVinculoESP(p)
         HealthFill = healthFill,
         HealthLabel = healthLabel,
         Skeleton = skeleton,
+        CenterLine = centerLineObj, 
         PlayerObj = p
     }
 end
@@ -569,27 +638,27 @@ for _, p in ipairs(Players:GetPlayers()) do
     end)
 end
 
-local function clearAllESP()
-    for name, _ in pairs(cacheESP) do removerESP(name) end
-    EspContainer:ClearAllChildren()
-end
+local parametrosRay = RaycastParams.new()
+parametrosRay.FilterType = Enum.RaycastFilterType.Exclude
 
-local function centralEspEngine()
+RunService.Heartbeat:Connect(function()
     if not _G.SecureRenderLoop then
         for _, data in pairs(cacheESP) do
-            if data.Group then data.Group.Visible = false end
+            if data.Group and data.Group.Visible then data.Group.Visible = false end
         end
         return
     end
     
+    local charMeu = player.Character
+    if not charMeu then return end
+    
     local origemRay = Camera.CFrame.Position
-    local parametrosRay = RaycastParams.new()
-    parametrosRay.FilterType = Enum.RaycastFilterType.Exclude
+    parametrosRay.FilterDescendantsInstances = {charMeu, Workspace:FindFirstChild("CarrosSpawnados")}
     
     for _, data in pairs(cacheESP) do
         local p = data.PlayerObj
         local char = p and p.Character
-        if char and char.Parent and player.Character then
+        if char and char.Parent then
             local hrp = char:FindFirstChild("HumanoidRootPart")
             local head = char:FindFirstChild("Head")
             local hum = char:FindFirstChildOfClass("Humanoid")
@@ -601,14 +670,23 @@ local function centralEspEngine()
                     local bottomPos = Camera:WorldToViewportPoint(hrp.Position - Vector3.new(0, 4.3, 0))
                     local headPos = Camera:WorldToViewportPoint(head.Position)
                     
-                    parametrosRay.FilterDescendantsInstances = {player.Character, char}
-                    local direcaoRay = head.Position - origemRay
-                    local resultadoRay = Workspace:Raycast(origemRay, direcaoRay, parametrosRay)
-                    local estaVisivel = (resultadoRay == nil)
+                    local resultadoRay = Workspace:Raycast(origemRay, head.Position - origemRay, parametrosRay)
+                    local estaVisivel = (resultadoRay == nil or resultadoRay.Instance:IsDescendantOf(char))
                     
                     local corAtual = estaVisivel and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
                     local boxSizeY = math.abs(topPos.Y - bottomPos.Y)
                     local boxSizeX = boxSizeY * 0.55
+                    
+                    local meuHrp = charMeu:FindFirstChild("HumanoidRootPart")
+                    if meuHrp then
+                        if (meuHrp.Position - hrp.Position).Magnitude <= 20 then
+                            atualizarLineFrame(data.CenterLine, Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2), Vector2.new(headPos.X, headPos.Y), corAtual)
+                        else
+                            data.CenterLine.Visible = false
+                        end
+                    else
+                        data.CenterLine.Visible = false
+                    end
                     
                     if _G.EspBoxTrack then
                         data.Box.Size = UDim2.new(0, boxSizeX, 0, boxSizeY)
@@ -620,11 +698,7 @@ local function centralEspEngine()
                     end
                     
                     if _G.EspNameTrack then
-                        if hum.Health <= 0 then
-                            data.NameTag.Text = (p.DisplayName or p.Name) .. " [MORTO]"
-                        else
-                            data.NameTag.Text = p.DisplayName or p.Name
-                        end
+                        data.NameTag.Text = hum.Health <= 0 and (p.DisplayName or p.Name) .. " [MORTO]" or p.DisplayName or p.Name
                         data.NameTag.Position = UDim2.new(0, topPos.X - 100, 0, topPos.Y - 16)
                         data.NameTag.Size = UDim2.new(0, 200, 0, 15)
                         data.NameTag.Visible = true
@@ -633,11 +707,10 @@ local function centralEspEngine()
                         data.NameTag.Visible = false
                     end
                     
-                    local scrHead = Vector2.new(headPos.X, headPos.Y)
                     if _G.EspSkeletonTrack then
                         local circleSize = boxSizeY * 0.25 
                         data.Circle.Size = UDim2.new(0, circleSize, 0, circleSize)
-                        data.Circle.Position = UDim2.new(0, scrHead.X, 0, scrHead.Y)
+                        data.Circle.Position = UDim2.new(0, headPos.X, 0, headPos.Y)
                         data.CircleStroke.Color = corAtual
                         data.Circle.Visible = true
                     else
@@ -653,15 +726,10 @@ local function centralEspEngine()
                         local vidaPct = (hum.Health / maxHealth) * 100
                         data.HealthFill.Size = UDim2.new(math.clamp(hum.Health / maxHealth, 0, 1), 0, 1, 0)
                         
-                        if vidaPct > 70 then
-                            data.HealthFill.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-                        elseif vidaPct < 20 then
-                            data.HealthFill.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-                        elseif vidaPct < 40 then
-                            data.HealthFill.BackgroundColor3 = Color3.fromRGB(255, 235, 0)
-                        else
-                            data.HealthFill.BackgroundColor3 = Color3.fromRGB(230, 126, 34)
-                        end
+                        if vidaPct > 70 then data.HealthFill.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+                        elseif vidaPct < 20 then data.HealthFill.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+                        elseif vidaPct < 40 then data.HealthFill.BackgroundColor3 = Color3.fromRGB(255, 235, 0)
+                        else data.HealthFill.BackgroundColor3 = Color3.fromRGB(230, 126, 34) end
                         
                         data.HealthLabel.Text = math.floor(hum.Health) .. " / " .. math.floor(maxHealth)
                         data.HealthLabel.Position = UDim2.new(0, topPos.X - 100, 0, bottomPos.Y + 11)
@@ -677,7 +745,7 @@ local function centralEspEngine()
                         local lArm = char:FindFirstChild("LeftUpperArm") or char:FindFirstChild("Left Arm")
                         local rArm = char:FindFirstChild("RightUpperArm") or char:FindFirstChild("Right Arm")
                         local lLeg = char:FindFirstChild("LeftUpperLeg") or char:FindFirstChild("Left Leg")
-                        local rLeg = char:FindFirstChild("RightUpperLeg") or char:FindFirstChild("Right Leg")
+                        local rLeg = char:FindFirstChild("RightUpperLeg") or char:FindFirstChild("Right Arm")
                         
                         local function getScreenV2(part)
                             if part then
@@ -693,7 +761,7 @@ local function centralEspEngine()
                         local scrLLeg = getScreenV2(lLeg)
                         local scrRLeg = getScreenV2(rLeg)
                         
-                        if scrHead and scrTorso then atualizarLineFrame(data.Skeleton.H_T, scrHead, scrTorso, corAtual) else data.Skeleton.H_T.Visible = false end
+                        if headPos and scrTorso then atualizarLineFrame(data.Skeleton.H_T, Vector2.new(headPos.X, headPos.Y), scrTorso, corAtual) else data.Skeleton.H_T.Visible = false end
                         if scrTorso and scrLArm then atualizarLineFrame(data.Skeleton.T_LA, scrTorso, scrLArm, corAtual) else data.Skeleton.T_LA.Visible = false end
                         if scrTorso and scrRArm then atualizarLineFrame(data.Skeleton.T_RA, scrTorso, scrRArm, corAtual) else data.Skeleton.T_RA.Visible = false end
                         if scrTorso and scrLLeg then atualizarLineFrame(data.Skeleton.T_LL, scrTorso, scrLLeg, corAtual) else data.Skeleton.T_LL.Visible = false end
@@ -708,21 +776,21 @@ local function centralEspEngine()
                     data.Group.Visible = true
                 else
                     data.Group.Visible = false
+                    data.CenterLine.Visible = false
                 end
             else
                 data.Group.Visible = false
+                data.CenterLine.Visible = false
             end
         else
             if data.Group then data.Group.Visible = false end
         end
     end
-end
-
-RunService:BindToRenderStep("GodzESP_Render", Enum.RenderPriority.Camera.Value + 1, centralEspEngine)
+end)
 
 task.spawn(function()
     while true do
-        task.wait(1.5)
+        task.wait(2)
         if _G.SecureRenderLoop then
             for _, p in ipairs(Players:GetPlayers()) do
                 if p ~= player and (not cacheESP[p.Name] or not cacheESP[p.Name].Group or not cacheESP[p.Name].Group.Parent) then 
@@ -733,7 +801,6 @@ task.spawn(function()
     end
 end)
 
--- --- LÓGICA DE ESPREITAR (VIEW) ---
 local function buscarJogador(texto)
     texto = texto:lower()
     for _, j in ipairs(Players:GetPlayers()) do
@@ -760,14 +827,13 @@ _G.BtnToggleViewGodz.MouseButton1Click:Connect(function()
     end
 end)
 
-_G.ViewCamConnection = RunService.RenderStepped:Connect(function()
+_G.ViewCamConnection = RunService.Heartbeat:Connect(function()
     if _G.CameraViewActive then
         local Alvo = buscarJogador(ViewTextBox.Text)
         if Alvo and Alvo.Character and Alvo.Character:FindFirstChild("HumanoidRootPart") then
             Camera.CameraType = Enum.CameraType.Scriptable
             local alvoPos = Alvo.Character.HumanoidRootPart.Position
-            local alturaDaCamera = 20 
-            Camera.CFrame = CFrame.new(alvoPos + Vector3.new(0, alturaDaCamera, 0.1), alvoPos)
+            Camera.CFrame = CFrame.new(alvoPos + Vector3.new(0, 20, 0.1), alvoPos)
         else
             _G.BtnToggleViewGodz.Text = "ALVO PERDIDO / CAÍDO"
             _G.BtnToggleViewGodz.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
@@ -784,7 +850,6 @@ _G.ViewCamConnection = RunService.RenderStepped:Connect(function()
     end
 end)
 
--- --- LÓGICA DO NOCLIP ---
 local function alternarBotaoFlutuanteNoclip(ligar)
     if ligar then
         if _G.NoclipRoundBtn then pcall(function() _G.NoclipRoundBtn:Destroy() end) end
@@ -823,7 +888,8 @@ local function alternarBotaoFlutuanteNoclip(ligar)
             if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then nDragInput = input end
         end)
         
-        UserInputService.InputChanged:Connect(function(input)
+        if _G.NoclipGlobalDrag then _G.NoclipGlobalDrag:Disconnect() end
+        _G.NoclipGlobalDrag = UserInputService.InputChanged:Connect(function(input)
             if input == nDragInput and nDrag then
                 local delta = input.Position - nDragStart
                 roundBtn.Position = UDim2.new(nStartPos.X.Scale, nStartPos.X.Offset + delta.X, nStartPos.Y.Scale, nStartPos.Y.Offset + delta.Y)
@@ -846,10 +912,8 @@ local function alternarBotaoFlutuanteNoclip(ligar)
         end)
         _G.NoclipRoundBtn = roundBtn
     else
-        if _G.NoclipRoundBtn then
-            pcall(function() _G.NoclipRoundBtn:Destroy() end)
-            _G.NoclipRoundBtn = nil
-        end
+        if _G.NoclipGlobalDrag then _G.NoclipGlobalDrag:Disconnect() _G.NoclipGlobalDrag = nil end
+        if _G.NoclipRoundBtn then pcall(function() _G.NoclipRoundBtn:Destroy() end) _G.NoclipRoundBtn = nil end
     end
 end
 
@@ -860,75 +924,203 @@ _G.BtnToggleNoclipGodz.MouseButton1Click:Connect(function()
     alternarBotaoFlutuanteNoclip(_G.NoclipActiveGodz)
 end)
 
--- --- MATEMÁTICA E LÓGICA DO AIMBOT ---
+local function alternarBotaoFlutuanteFly(ligar)
+    if ligar then
+        if _G.FlyRoundBtn then pcall(function() _G.FlyRoundBtn:Destroy() end) end
+        
+        local roundBtn = Instance.new("TextButton")
+        roundBtn.Size = UDim2.new(0, 50, 0, 50)
+        roundBtn.Position = UDim2.new(0.1, 0, 0.62, 0) 
+        roundBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+        roundBtn.Text = "🦅"
+        roundBtn.TextSize = 24
+        roundBtn.Font = Enum.Font.Roboto 
+        roundBtn.RichText = true
+        roundBtn.Active = true
+        roundBtn.Parent = screenGui
+        
+        local btnCorner = Instance.new("UICorner")
+        btnCorner.CornerRadius = UDim.new(1, 0)
+        btnCorner.Parent = roundBtn
+        
+        local btnStroke = Instance.new("UIStroke")
+        btnStroke.Color = Color3.fromRGB(52, 152, 219)
+        btnStroke.Thickness = 2
+        btnStroke.Parent = roundBtn
+        
+        local fDrag, fDragInput, fDragStart, fStartPos
+        roundBtn.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                fDrag = true
+                fDragStart = input.Position
+                fStartPos = roundBtn.Position
+                input.Changed:Connect(function()
+                    if input.UserInputState == Enum.UserInputState.End then fDrag = false end
+                end)
+            end
+        end)
+        
+        roundBtn.InputChanged:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then fDragInput = input end
+        end)
+        
+        if _G.FlyGlobalDrag then _G.FlyGlobalDrag:Disconnect() end
+        _G.FlyGlobalDrag = UserInputService.InputChanged:Connect(function(input)
+            if input == fDragInput and fDrag then
+                local delta = input.Position - fDragStart
+                roundBtn.Position = UDim2.new(fStartPos.X.Scale, fStartPos.X.Offset + delta.X, fStartPos.Y.Scale, fStartPos.Y.Offset + delta.Y)
+            end
+        end)
+        
+        local function startFly()
+            local char = player.Character
+            if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+            
+            local hrp = char.HumanoidRootPart
+            _G.FlyingStateGodz = true
+            roundBtn.Text = "🦅"
+            roundBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+            
+            if _G.FlyPlatformGodz then pcall(function() _G.FlyPlatformGodz:Destroy() end) end
+            
+            local platform = Instance.new("Part")
+            platform.Size = Vector3.new(4, 1, 4)
+            platform.Transparency = 1 
+            platform.Anchored = true
+            platform.CanCollide = true
+            platform.Parent = workspace
+            _G.FlyPlatformGodz = platform
+            
+            if _G.FlyConnectionGodz then pcall(function() _G.FlyConnectionGodz:Disconnect() end) end
+            _G.FlyConnectionGodz = RunService.Heartbeat:Connect(function(dt)
+                if not _G.FlyingStateGodz or not char or not char:FindFirstChild("HumanoidRootPart") then return end
+                
+                platform.CFrame = hrp.CFrame * CFrame.new(0, -3.1, 0)
+                hrp.Velocity = Vector3.new(0, 0, 0)
+                
+                local moveVector = Vector3.new(0, 0, 0)
+                pcall(function()
+                    moveVector = require(player.PlayerScripts.PlayerModule):GetControls():GetMoveVector()
+                end)
+                
+                local camCFrame = workspace.CurrentCamera.CFrame
+                if moveVector.Magnitude > 0 then
+                    local direction = (camCFrame.LookVector * -moveVector.Z + camCFrame.RightVector * moveVector.X)
+                    hrp.CFrame = hrp.CFrame + (direction * 40 * dt)
+                end
+            end)
+        end
+        
+        local function stopFly()
+            _G.FlyingStateGodz = false
+            roundBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+            if _G.FlyConnectionGodz then pcall(function() _G.FlyConnectionGodz:Disconnect() end) _G.FlyConnectionGodz = nil end
+            if _G.FlyPlatformGodz then pcall(function() _G.FlyPlatformGodz:Destroy() end) _G.FlyPlatformGodz = nil end
+        end
+        
+        roundBtn.MouseButton1Click:Connect(function()
+            if _G.FlyingStateGodz then stopFly() else startFly() end
+        end)
+        
+        _G.FlyRoundBtn = roundBtn
+    else
+        _G.FlyingStateGodz = false
+        if _G.FlyGlobalDrag then _G.FlyGlobalDrag:Disconnect() _G.FlyGlobalDrag = nil end
+        if _G.FlyConnectionGodz then pcall(function() _G.FlyConnectionGodz:Disconnect() end) _G.FlyConnectionGodz = nil end
+        if _G.FlyPlatformGodz then pcall(function() _G.FlyPlatformGodz:Destroy() end) _G.FlyPlatformGodz = nil end
+        if _G.FlyRoundBtn then pcall(function() _G.FlyRoundBtn:Destroy() end) _G.FlyRoundBtn = nil end
+    end
+end
+
+_G.BtnToggleFlyGodz.MouseButton1Click:Connect(function()
+    _G.FlyActiveGodz = not _G.FlyActiveGodz
+    _G.BtnToggleFlyGodz.BackgroundColor3 = _G.FlyActiveGodz and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
+    _G.BtnToggleFlyGodz.Text = _G.FlyActiveGodz and "BOTÃO FLUTUANTE FLY: ON" or "BOTÃO FLUTUANTE FLY: OFF"
+    alternarBotaoFlutuanteFly(_G.FlyActiveGodz)
+end)
+
 local function encontrarAlvoMaisProximo()
     local alvoMaisProximo = nil
     local menorDistanciaNaTela = _G.AimFovValue / 2
     local centroDaTela = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    local estaVisivelAlvo = false
+    
+    local carrosFolder = Workspace:FindFirstChild("CarrosSpawnados")
+    local meuChar = player.Character
+    if not meuChar then return nil, false end
+    
+    local paramsAimbot = RaycastParams.new()
+    paramsAimbot.FilterType = Enum.RaycastFilterType.Exclude
     
     for _, outroPlayer in ipairs(Players:GetPlayers()) do
         if outroPlayer ~= player and outroPlayer.Character then
             local char = outroPlayer.Character
-            local cabeca = char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart")
-            local humanoid = char:FindFirstChild("Humanoid")
+            local alvoPart = _G.AimTargetPart == "Head" and char:FindFirstChild("Head") or (char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso"))
+            if not alvoPart then alvoPart = char:FindFirstChild("HumanoidRootPart") end
             
-            if cabeca and humanoid then
+            local humanoid = char:FindFirstChild("Humanoid")
+            if alvoPart and humanoid then
                 if _G.AimKillCheck and humanoid.Health <= 0 then continue end
                 if _G.AimTeamCheck and outroPlayer.Team == player.Team then continue end
                 
-                local posicaoNaTela, visivelNaTela = Camera:WorldToViewportPoint(cabeca.Position)
+                local posicaoNaTela, visivelNaTela = Camera:WorldToViewportPoint(alvoPart.Position)
                 if visivelNaTela then
-                    local posicao2D = Vector2.new(posicaoNaTela.X, posicaoNaTela.Y)
-                    local distanciaDoCentro = (posicao2D - centroDaTela).Magnitude
-                    
+                    local distanciaDoCentro = (Vector2.new(posicaoNaTela.X, posicaoNaTela.Y) - centroDaTela).Magnitude
                     if distanciaDoCentro < menorDistanciaNaTela then
-                        if _G.AimWallCheck then
-                            local parametrosRaycast = RaycastParams.new()
-                            parametrosRaycast.FilterType = Enum.RaycastFilterType.Exclude
-                            parametrosRaycast.FilterDescendantsInstances = {player.Character, char}
-                            local resultadoRaycast = Workspace:Raycast(Camera.CFrame.Position, cabeca.Position - Camera.CFrame.Position, parametrosRaycast)
-                            if resultadoRaycast then continue end
-                        end
+                        local listaExclusao = {meuChar, char}
+                        if carrosFolder then table.insert(listaExclusao, carrosFolder) end
+                        paramsAimbot.FilterDescendantsInstances = listaExclusao
+                        
+                        local resultadoRaycast = Workspace:Raycast(Camera.CFrame.Position, alvoPart.Position - Camera.CFrame.Position, paramsAimbot)
+                        local visivel = (resultadoRaycast == nil or resultadoRaycast.Instance:IsDescendantOf(char))
+                        
                         menorDistanciaNaTela = distanciaDoCentro
-                        alvoMaisProximo = cabeca
+                        alvoMaisProximo = alvoPart
+                        estaVisivelAlvo = visivel
                     end
                 end
             end
         end
     end
-    return alvoMaisProximo
+    return alvoMaisProximo, estaVisivelAlvo
 end
 
 RunService:BindToRenderStep("AimbotMobileLock", Enum.RenderPriority.Camera.Value + 1, function()
     if _G.AimbotActiveGodz then
-        local alvo = encontrarAlvoMaisProximo()
+        fovCircle.Visible = true 
+        local centroDaTela = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+        local alvo, visivel = encontrarAlvoMaisProximo()
+        
         if alvo then
-            Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, alvo.Position)
+            local corDinamica = visivel and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+            local pos2d, onScreen = Camera:WorldToViewportPoint(alvo.Position)
+            
+            if onScreen then
+                atualizarLineFrame(aimTracer, centroDaTela, Vector2.new(pos2d.X, pos2d.Y), corDinamica)
+                aimTracer.Visible = true
+            else
+                aimTracer.Visible = false
+            end
+            
+            fovStroke.Color = corDinamica
+            if not _G.AimWallCheck or (_G.AimWallCheck and visivel) then
+                Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, alvo.Position)
+            end
+        else
+            aimTracer.Visible = false
+            fovStroke.Color = Color3.fromRGB(255, 255, 255)
         end
+    else
+        aimTracer.Visible = false
+        fovCircle.Visible = false 
     end
 end)
 
--- --- EVENTOS DOS BOTÕES DO AIMBOT (TAB 7) ---
-_G.BtnToggleAimGodz.MouseButton1Click:Connect(function()
-    _G.AimbotActiveGodz = not _G.AimbotActiveGodz
-    fovCircle.Visible = _G.AimbotActiveGodz
-    atualizarInterface()
-end)
-
-_G.BtnToggleAimTeamGodz.MouseButton1Click:Connect(function()
-    _G.AimTeamCheck = not _G.AimTeamCheck
-    atualizarInterface()
-end)
-
-_G.BtnToggleAimKillGodz.MouseButton1Click:Connect(function()
-    _G.AimKillCheck = not _G.AimKillCheck
-    atualizarInterface()
-end)
-
-_G.BtnToggleAimWallGodz.MouseButton1Click:Connect(function()
-    _G.AimWallCheck = not _G.AimWallCheck
-    atualizarInterface()
-end)
+_G.BtnToggleAimGodz.MouseButton1Click:Connect(function() _G.AimbotActiveGodz = not _G.AimbotActiveGodz atualizarInterface() end)
+_G.BtnToggleAimPartGodz.MouseButton1Click:Connect(function() _G.AimTargetPart = _G.AimTargetPart == "Head" and "Torso" or "Head" atualizarInterface() end)
+_G.BtnToggleAimTeamGodz.MouseButton1Click:Connect(function() _G.AimTeamCheck = not _G.AimTeamCheck atualizarInterface() end)
+_G.BtnToggleAimKillGodz.MouseButton1Click:Connect(function() _G.AimKillCheck = not _G.AimKillCheck atualizarInterface() end)
+_G.BtnToggleAimWallGodz.MouseButton1Click:Connect(function() _G.AimWallCheck = not _G.AimWallCheck atualizarInterface() end)
 
 AimFovTextBox.FocusLost:Connect(function()
     local val = tonumber(AimFovTextBox.Text)
@@ -936,7 +1128,55 @@ AimFovTextBox.FocusLost:Connect(function()
     fovCircle.Size = UDim2.new(0, _G.AimFovValue, 0, _G.AimFovValue)
 end)
 
--- --- LÓGICA DE RENDERIZAÇÃO DA INTERFACE ---
+-- NOVA LÓGICA DE TP PLAYER ACOPLADA AO BOTÃO DA ABA 9
+_G.BtnTpPlayerGodz.MouseButton1Click:Connect(function()
+    local targetName = TpPlayerTextBox.Text
+    local targetPlayer = nil
+    
+    for _, p in pairs(Players:GetPlayers()) do
+        if p.Name:lower():sub(1, #targetName) == targetName:lower() or (p.DisplayName and p.DisplayName:lower():sub(1, #targetName) == targetName:lower()) then
+            targetPlayer = p
+            break
+        end
+    end
+    
+    if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local char = player.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            local myRoot = char.HumanoidRootPart
+            local targetRoot = targetPlayer.Character.HumanoidRootPart
+            
+            _G.BtnTpPlayerGodz.Text = "TELEPORTANDO..."
+            _G.BtnTpPlayerGodz.BackgroundColor3 = Color3.fromRGB(230, 126, 34)
+            
+            task.spawn(function()
+                -- Em vez de instanciar uma Part, deixamos o personagem ancorado no ar enquanto movemos.
+                -- Isso previne quedas sem precisar instanciar blocos que podem ser bloqueados pela engine em scripts locais.
+                myRoot.Anchored = true
+                
+                while targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") and (myRoot.Position - targetRoot.Position).Magnitude > 4 do
+                    local direction = (targetRoot.Position - myRoot.Position).Unit
+                    myRoot.CFrame = myRoot.CFrame + (direction * 4) 
+                    task.wait(0.05)
+                end
+                
+                myRoot.Anchored = false
+                _G.BtnTpPlayerGodz.Text = "TELEPORTAR (Freeze)"
+                _G.BtnTpPlayerGodz.BackgroundColor3 = Color3.fromRGB(39, 174, 96)
+                _G.StatusLabelGodz.Text = "Teleporte concluído!"
+                _G.StatusLabelGodz.TextColor3 = Color3.fromRGB(46, 204, 113)
+            end)
+        end
+    else
+        _G.BtnTpPlayerGodz.Text = "JOGADOR NÃO ENCONTRADO"
+        _G.BtnTpPlayerGodz.BackgroundColor3 = Color3.fromRGB(231, 76, 60)
+        task.wait(1.5)
+        _G.BtnTpPlayerGodz.Text = "TELEPORTAR (Freeze)"
+        _G.BtnTpPlayerGodz.BackgroundColor3 = Color3.fromRGB(39, 174, 96)
+    end
+end)
+
+
 resetarCoresAbas = function()
     local c = Color3.fromRGB(36, 36, 42) local tc = Color3.fromRGB(160, 160, 170)
     _G.BtnAba1Godz.BackgroundColor3 = c; _G.BtnAba1Godz.TextColor3 = tc
@@ -946,12 +1186,13 @@ resetarCoresAbas = function()
     _G.BtnAba5Godz.BackgroundColor3 = c; _G.BtnAba5Godz.TextColor3 = tc
     _G.BtnAba6Godz.BackgroundColor3 = c; _G.BtnAba6Godz.TextColor3 = tc
     _G.BtnAba7Godz.BackgroundColor3 = c; _G.BtnAba7Godz.TextColor3 = tc
+    _G.BtnAba8Godz.BackgroundColor3 = c; _G.BtnAba8Godz.TextColor3 = tc 
+    _G.BtnAba9Godz.BackgroundColor3 = c; _G.BtnAba9Godz.TextColor3 = tc 
 end
 
 atualizarInterface = function()
     resetarCoresAbas()
     
-    -- Ocultar todas as páginas por padrão
     SpeedTextBox.Visible = false
     _G.BtnToggleSpeedGodz.Visible = false
     _G.EspScrollFrameGodz.Visible = false
@@ -960,8 +1201,9 @@ atualizarInterface = function()
     _G.ViewScrollFrameGodz.Visible = false
     _G.NoclipScrollFrameGodz.Visible = false
     _G.AimScrollFrameGodz.Visible = false
+    _G.FlyScrollFrameGodz.Visible = false 
+    _G.TpPlyScrollFrameGodz.Visible = false 
     
-    -- Atualização visual dos estados dos botões
     _G.BtnToggleESPGodz.BackgroundColor3 = _G.SecureRenderLoop and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
     _G.BtnToggleESPGodz.Text = _G.SecureRenderLoop and "LIGAR ESP MASTER: ATIVADO" or "LIGAR ESP MASTER: DESATIVADO"
     
@@ -982,6 +1224,9 @@ atualizarInterface = function()
     
     _G.BtnToggleAimGodz.BackgroundColor3 = _G.AimbotActiveGodz and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
     _G.BtnToggleAimGodz.Text = _G.AimbotActiveGodz and "SISTEMA AIMBOT: ON" or "SISTEMA AIMBOT: OFF"
+
+    _G.BtnToggleAimPartGodz.Text = _G.AimTargetPart == "Head" and "MIRA FOCADA: CABEÇA" or "MIRA FOCADA: TORSO"
+    _G.BtnToggleAimPartGodz.BackgroundColor3 = _G.AimTargetPart == "Head" and Color3.fromRGB(155, 89, 182) or Color3.fromRGB(230, 126, 34)
     
     _G.BtnToggleAimTeamGodz.BackgroundColor3 = _G.AimTeamCheck and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
     _G.BtnToggleAimTeamGodz.Text = _G.AimTeamCheck and "TEAM CHECK: ON" or "TEAM CHECK: OFF"
@@ -992,7 +1237,9 @@ atualizarInterface = function()
     _G.BtnToggleAimWallGodz.BackgroundColor3 = _G.AimWallCheck and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
     _G.BtnToggleAimWallGodz.Text = _G.AimWallCheck and "WALL CHECK: ON" or "WALL CHECK: OFF"
     
-    -- Exibir página selecionada
+    _G.BtnToggleFlyGodz.BackgroundColor3 = _G.FlyActiveGodz and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
+    _G.BtnToggleFlyGodz.Text = _G.FlyActiveGodz and "BOTÃO FLUTUANTE FLY: ON" or "BOTÃO FLUTUANTE FLY: OFF"
+    
     if paginaAtual == 1 then
         _G.BtnAba1Godz.BackgroundColor3 = Color3.fromRGB(231, 76, 60); _G.BtnAba1Godz.TextColor3 = Color3.fromRGB(255, 255, 255)
         SpeedTextBox.Visible = true
@@ -1029,10 +1276,21 @@ atualizarInterface = function()
         _G.AimScrollFrameGodz.Visible = true
         _G.StatusLabelGodz.Text = _G.AimbotActiveGodz and "Aimbot Ativo: Travando Alvos" or "Configurações de Auxílio de Mira"
         _G.StatusLabelGodz.TextColor3 = _G.AimbotActiveGodz and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(255, 255, 255)
+    elseif paginaAtual == 8 then 
+        _G.BtnAba8Godz.BackgroundColor3 = Color3.fromRGB(231, 76, 60); _G.BtnAba8Godz.TextColor3 = Color3.fromRGB(255, 255, 255)
+        _G.FlyScrollFrameGodz.Visible = true
+        _G.StatusLabelGodz.Text = "Bypass Fly: " .. (_G.FlyActiveGodz and "Botão Criado" or "Botão Oculto")
+        _G.StatusLabelGodz.TextColor3 = _G.FlyActiveGodz and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(255, 255, 255)
+    elseif paginaAtual == 9 then
+        _G.BtnAba9Godz.BackgroundColor3 = Color3.fromRGB(231, 76, 60); _G.BtnAba9Godz.TextColor3 = Color3.fromRGB(255, 255, 255)
+        _G.TpPlyScrollFrameGodz.Visible = true
+        _G.StatusLabelGodz.Text = "Teleporte até Jogadores"
+        _G.StatusLabelGodz.TextColor3 = Color3.fromRGB(255, 255, 255)
     end
+    
+    if _G.AimbotActiveGodz then fovCircle.Visible = true else fovCircle.Visible = false end
 end
 
--- Cliques de troca de aba
 _G.BtnAba1Godz.MouseButton1Click:Connect(function() paginaAtual = 1 atualizarInterface() end)
 _G.BtnAba2Godz.MouseButton1Click:Connect(function() paginaAtual = 2 atualizarInterface() end)
 _G.BtnAba3Godz.MouseButton1Click:Connect(function() paginaAtual = 3 atualizarInterface() end)
@@ -1040,8 +1298,9 @@ _G.BtnAba4Godz.MouseButton1Click:Connect(function() paginaAtual = 4 atualizarInt
 _G.BtnAba5Godz.MouseButton1Click:Connect(function() paginaAtual = 5 atualizarInterface() end)
 _G.BtnAba6Godz.MouseButton1Click:Connect(function() paginaAtual = 6 atualizarInterface() end)
 _G.BtnAba7Godz.MouseButton1Click:Connect(function() paginaAtual = 7 atualizarInterface() end)
+_G.BtnAba8Godz.MouseButton1Click:Connect(function() paginaAtual = 8 atualizarInterface() end)
+_G.BtnAba9Godz.MouseButton1Click:Connect(function() paginaAtual = 9 atualizarInterface() end)
 
--- Outros manipuladores de eventos da aba MAIN e ESP
 SpeedTextBox.FocusLost:Connect(function()
     local val = tonumber(SpeedTextBox.Text)
     if val then _G.SpeedBypassValue = math.clamp(val, 16, 60) else SpeedTextBox.Text = tostring(_G.SpeedBypassValue) end
@@ -1109,16 +1368,18 @@ _G.BtnMinimizarGodz.MouseButton1Click:Connect(function()
     if not minimizado then atualizarInterface() end
 end)
 
--- --- LOOP DE VERIFICAÇÃO PRINCIPAL (SPEED / DESCONEXÃO) ---
 local SpeedConnectionName = getRandomName()
 _G[SpeedConnectionName] = RunService.RenderStepped:Connect(function(deltaTime)
     if not screenGui or not screenGui.Parent then
-        _G.SecureSpeedLoop = false; _G.SecureRenderLoop = false; _G.CameraViewActive = false; _G.AimbotActiveGodz = false
-        pcall(function() RunService:UnbindFromRenderStep("GodzESP_Render") end)
+        _G.SecureSpeedLoop = false; _G.SecureRenderLoop = false; _G.CameraViewActive = false; _G.AimbotActiveGodz = false; _G.FlyingStateGodz = false
         pcall(function() RunService:UnbindFromRenderStep("AimbotMobileLock") end)
         if _G.ViewCamConnection then pcall(function() _G.ViewCamConnection:Disconnect() end) end
         if _G.NoclipRoundBtn then pcall(function() _G.NoclipRoundBtn:Destroy() end) end
+        if _G.FlyRoundBtn then pcall(function() _G.FlyRoundBtn:Destroy() end) end
+        if _G.FlyConnectionGodz then pcall(function() _G.FlyConnectionGodz:Disconnect() end) end
+        if _G.FlyPlatformGodz then pcall(function() _G.FlyPlatformGodz:Destroy() end) end
         if fovCircle then pcall(function() fovCircle:Destroy() end) end
+        if aimTracer then pcall(function() aimTracer:Destroy() end) end
         clearAllESP()
         EspContainer:Destroy()
         if _G[SpeedConnectionName] then _G[SpeedConnectionName]:Disconnect() end
@@ -1139,5 +1400,4 @@ _G[SpeedConnectionName] = RunService.RenderStepped:Connect(function(deltaTime)
     end
 end)
 
--- Inicializa a interface com a configuração correta das abas
 atualizarInterface()
