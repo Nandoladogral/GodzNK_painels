@@ -1,3 +1,4 @@
+-- mais em breve por favor não kibe esse script demorei messes para fazer 🫠 
 _G.HubVisualCarregada = false
 _G.HubLogicaPronta = false
 
@@ -14,6 +15,7 @@ local Camera = Workspace.CurrentCamera
 -- Limpeza agressiva para evitar vazamento de memória (Anti-Lag)
 if _G.SecureSpeedLoop then _G.SecureSpeedLoop = false task.wait(0.05) end
 if _G.SecureRenderLoop then _G.SecureRenderLoop = false task.wait(0.05) end
+if _G.EspCarTrack then _G.EspCarTrack = false task.wait(0.05) end -- Novo
 if _G.MainHubInterface then _G.MainHubInterface:Destroy() task.wait(0.05) end
 
 pcall(function() RunService:UnbindFromRenderStep("GodzESP_Render") end)
@@ -24,12 +26,14 @@ pcall(function() RunService:UnbindFromRenderStep("GodzSpeed_Render") end)
 if _G.MainDragGlobal then pcall(function() _G.MainDragGlobal:Disconnect() end) _G.MainDragGlobal = nil end
 if _G.NoclipGlobalDrag then pcall(function() _G.NoclipGlobalDrag:Disconnect() end) _G.NoclipGlobalDrag = nil end
 if _G.FlyGlobalDrag then pcall(function() _G.FlyGlobalDrag:Disconnect() end) _G.FlyGlobalDrag = nil end
+if _G.AimGlobalDrag then pcall(function() _G.AimGlobalDrag:Disconnect() end) _G.AimGlobalDrag = nil end
 
 if _G.ViewCamConnection then pcall(function() _G.ViewCamConnection:Disconnect() end) _G.ViewCamConnection = nil end
 if _G.FlyConnectionGodz then pcall(function() _G.FlyConnectionGodz:Disconnect() end) _G.FlyConnectionGodz = nil end
 if _G.FlyPlatformGodz then pcall(function() _G.FlyPlatformGodz:Destroy() end) _G.FlyPlatformGodz = nil end
 if _G.FlyRoundBtn then pcall(function() _G.FlyRoundBtn:Destroy() end) _G.FlyRoundBtn = nil end
 if _G.NoclipRoundBtn then pcall(function() _G.NoclipRoundBtn:Destroy() end) _G.NoclipRoundBtn = nil end
+if _G.AimRoundBtn then pcall(function() _G.AimRoundBtn:Destroy() end) _G.AimRoundBtn = nil end
 
 pcall(function()
     Camera.CameraType = Enum.CameraType.Custom
@@ -49,7 +53,7 @@ end
 setgarbagecollection = setgarbagecollection or function() end
 pcall(function() gcinfo() end)
 
-local minimizado, paginaAtual = false, 2
+local minimizado, paginaAtual = false, 1
 _G.SecureRenderLoop = false
 _G.SecureSpeedLoop = false
 _G.CameraViewActive = false
@@ -58,6 +62,7 @@ _G.FlyActiveGodz = false
 _G.FlyingStateGodz = false
 
 _G.AimbotActiveGodz = false
+_G.AimFloatActive = false 
 _G.AimTargetPart = "Head" 
 _G.AimFovValue = 100
 _G.AimTeamCheck = false
@@ -69,6 +74,7 @@ _G.EspBoxTrack = true
 _G.EspSkeletonTrack = true
 _G.EspNameTrack = true
 _G.EspHealthTrack = true
+_G.EspCarTrack = false -- Controle do ESP de Carros
 
 local atualizarInterface
 local resetarCoresAbas
@@ -202,7 +208,7 @@ tabsScroll.Size = UDim2.new(0.9, 0, 0, 30)
 tabsScroll.Position = UDim2.new(0.05, 0, 0, 0)
 tabsScroll.BackgroundTransparency = 1
 tabsScroll.BorderSizePixel = 0
-tabsScroll.CanvasSize = UDim2.new(3.2, 0, 0, 0) -- Tamanho aumentado para comportar a 9ª aba
+tabsScroll.CanvasSize = UDim2.new(2.5, 0, 0, 0) 
 tabsScroll.ScrollBarThickness = 0
 tabsScroll.ScrollingDirection = Enum.ScrollingDirection.X
 tabsScroll.Parent = _G.ContainerFrameGodz
@@ -235,10 +241,9 @@ _G.BtnAba2Godz = criarBotaoAba("ESP", 2, 50)
 _G.BtnAba3Godz = criarBotaoAba("TP", 3, 45)
 _G.BtnAba4Godz = criarBotaoAba("CLASS", 4, 55)
 _G.BtnAba5Godz = criarBotaoAba("VIEW", 5, 45)
-_G.BtnAba6Godz = criarBotaoAba("NOCLIP", 6, 55)
-_G.BtnAba7Godz = criarBotaoAba("AIM", 7, 45)
-_G.BtnAba8Godz = criarBotaoAba("FLY", 8, 45) 
-_G.BtnAba9Godz = criarBotaoAba("TP PLY", 9, 55) -- NOVA ABA ADICIONADA AQUI
+_G.BtnAba6Godz = criarBotaoAba("AIM", 6, 45)
+_G.BtnAba7Godz = criarBotaoAba("TP PLY", 7, 55)
+_G.BtnAba8Godz = criarBotaoAba("OPEN", 8, 50)
 
 _G.StatusLabelGodz = Instance.new("TextLabel")
 _G.StatusLabelGodz.Size = UDim2.new(0.9, 0, 0, 25)
@@ -260,11 +265,38 @@ _G.ContentFrameGodz.Position = UDim2.new(0.05, 0, 0, 62)
 _G.ContentFrameGodz.BackgroundTransparency = 1
 _G.ContentFrameGodz.Parent = _G.ContainerFrameGodz
 
+_G.MainScrollFrameGodz = Instance.new("ScrollingFrame")
+_G.MainScrollFrameGodz.Size = UDim2.new(1, 0, 1, -5)
+_G.MainScrollFrameGodz.BackgroundTransparency = 1
+_G.MainScrollFrameGodz.BorderSizePixel = 0
+_G.MainScrollFrameGodz.CanvasSize = UDim2.new(0, 0, 1.8, 0)
+_G.MainScrollFrameGodz.ScrollBarThickness = 2
+_G.MainScrollFrameGodz.ScrollBarImageColor3 = Color3.fromRGB(60, 60, 70)
+_G.MainScrollFrameGodz.Visible = false
+_G.MainScrollFrameGodz.Parent = _G.ContentFrameGodz
+
+local mainLayout = Instance.new("UIListLayout")
+mainLayout.FillDirection = Enum.FillDirection.Vertical
+mainLayout.SortOrder = Enum.SortOrder.LayoutOrder
+mainLayout.Padding = UDim.new(0, 6)
+mainLayout.Parent = _G.MainScrollFrameGodz
+
+local function criarSeparador(texto, pai)
+    local sep = Instance.new("TextLabel")
+    sep.Size = UDim2.new(1, 0, 0, 20)
+    sep.BackgroundTransparency = 1
+    sep.Text = "- - - - " .. texto .. " - - - -"
+    sep.TextColor3 = Color3.fromRGB(150, 150, 160)
+    sep.Font = Enum.Font.Code
+    sep.TextSize = 12
+    sep.Parent = pai
+end
+
 _G.EspScrollFrameGodz = Instance.new("ScrollingFrame")
 _G.EspScrollFrameGodz.Size = UDim2.new(1, 0, 1, -5)
 _G.EspScrollFrameGodz.BackgroundTransparency = 1
 _G.EspScrollFrameGodz.BorderSizePixel = 0
-_G.EspScrollFrameGodz.CanvasSize = UDim2.new(0, 0, 1.8, 0)
+_G.EspScrollFrameGodz.CanvasSize = UDim2.new(0, 0, 2.0, 0) -- Canvas aumentado para o novo botão
 _G.EspScrollFrameGodz.ScrollBarThickness = 2
 _G.EspScrollFrameGodz.ScrollBarImageColor3 = Color3.fromRGB(60, 60, 70)
 _G.EspScrollFrameGodz.Visible = false
@@ -323,26 +355,11 @@ viewLayout.SortOrder = Enum.SortOrder.LayoutOrder
 viewLayout.Padding = UDim.new(0, 8)
 viewLayout.Parent = _G.ViewScrollFrameGodz
 
-_G.NoclipScrollFrameGodz = Instance.new("ScrollingFrame")
-_G.NoclipScrollFrameGodz.Size = UDim2.new(1, 0, 1, -5)
-_G.NoclipScrollFrameGodz.BackgroundTransparency = 1
-_G.NoclipScrollFrameGodz.BorderSizePixel = 0
-_G.NoclipScrollFrameGodz.CanvasSize = UDim2.new(0, 0, 1.0, 0)
-_G.NoclipScrollFrameGodz.ScrollBarThickness = 0
-_G.NoclipScrollFrameGodz.Visible = false
-_G.NoclipScrollFrameGodz.Parent = _G.ContentFrameGodz
-
-local noclipLayout = Instance.new("UIListLayout")
-noclipLayout.FillDirection = Enum.FillDirection.Vertical
-noclipLayout.SortOrder = Enum.SortOrder.LayoutOrder
-noclipLayout.Padding = UDim.new(0, 8)
-noclipLayout.Parent = _G.NoclipScrollFrameGodz
-
 _G.AimScrollFrameGodz = Instance.new("ScrollingFrame")
 _G.AimScrollFrameGodz.Size = UDim2.new(1, 0, 1, -5)
 _G.AimScrollFrameGodz.BackgroundTransparency = 1
 _G.AimScrollFrameGodz.BorderSizePixel = 0
-_G.AimScrollFrameGodz.CanvasSize = UDim2.new(0, 0, 2.2, 0) 
+_G.AimScrollFrameGodz.CanvasSize = UDim2.new(0, 0, 2.5, 0) 
 _G.AimScrollFrameGodz.ScrollBarThickness = 2
 _G.AimScrollFrameGodz.ScrollBarImageColor3 = Color3.fromRGB(60, 60, 70)
 _G.AimScrollFrameGodz.Visible = false
@@ -354,22 +371,6 @@ aimLayout.SortOrder = Enum.SortOrder.LayoutOrder
 aimLayout.Padding = UDim.new(0, 6)
 aimLayout.Parent = _G.AimScrollFrameGodz
 
-_G.FlyScrollFrameGodz = Instance.new("ScrollingFrame")
-_G.FlyScrollFrameGodz.Size = UDim2.new(1, 0, 1, -5)
-_G.FlyScrollFrameGodz.BackgroundTransparency = 1
-_G.FlyScrollFrameGodz.BorderSizePixel = 0
-_G.FlyScrollFrameGodz.CanvasSize = UDim2.new(0, 0, 1.0, 0)
-_G.FlyScrollFrameGodz.ScrollBarThickness = 0
-_G.FlyScrollFrameGodz.Visible = false
-_G.FlyScrollFrameGodz.Parent = _G.ContentFrameGodz
-
-local flyLayout = Instance.new("UIListLayout")
-flyLayout.FillDirection = Enum.FillDirection.Vertical
-flyLayout.SortOrder = Enum.SortOrder.LayoutOrder
-flyLayout.Padding = UDim.new(0, 8)
-flyLayout.Parent = _G.FlyScrollFrameGodz
-
--- SCROLL DA NOVA ABA 9 (TP PLY)
 _G.TpPlyScrollFrameGodz = Instance.new("ScrollingFrame")
 _G.TpPlyScrollFrameGodz.Size = UDim2.new(1, 0, 1, -5)
 _G.TpPlyScrollFrameGodz.BackgroundTransparency = 1
@@ -385,6 +386,23 @@ tpPlyLayout.SortOrder = Enum.SortOrder.LayoutOrder
 tpPlyLayout.Padding = UDim.new(0, 8)
 tpPlyLayout.Parent = _G.TpPlyScrollFrameGodz
 
+-- ABA OPEN
+_G.OpenScrollFrameGodz = Instance.new("ScrollingFrame")
+_G.OpenScrollFrameGodz.Size = UDim2.new(1, 0, 1, -5)
+_G.OpenScrollFrameGodz.BackgroundTransparency = 1
+_G.OpenScrollFrameGodz.BorderSizePixel = 0
+_G.OpenScrollFrameGodz.CanvasSize = UDim2.new(0, 0, 1.2, 0)
+_G.OpenScrollFrameGodz.ScrollBarThickness = 2
+_G.OpenScrollFrameGodz.ScrollBarImageColor3 = Color3.fromRGB(60, 60, 70)
+_G.OpenScrollFrameGodz.Visible = false
+_G.OpenScrollFrameGodz.Parent = _G.ContentFrameGodz
+
+local openLayout = Instance.new("UIListLayout")
+openLayout.FillDirection = Enum.FillDirection.Vertical
+openLayout.SortOrder = Enum.SortOrder.LayoutOrder
+openLayout.Padding = UDim.new(0, 6)
+openLayout.Parent = _G.OpenScrollFrameGodz
+
 local function criarBotaoAcao(nome, texto, cor, pai)
     local btn = Instance.new("TextButton")
     btn.Name = nome; btn.Size = UDim2.new(1, 0, 0, 26); btn.BackgroundColor3 = cor
@@ -396,10 +414,12 @@ local function criarBotaoAcao(nome, texto, cor, pai)
     return btn
 end
 
+-- ORGANIZAÇÃO DA ABA MAIN
+criarSeparador("SPEED", _G.MainScrollFrameGodz)
+
 local SpeedTextBox = Instance.new("TextBox")
 SpeedTextBox.Name = getRandomName()
 SpeedTextBox.Size = UDim2.new(1, 0, 0, 32)
-SpeedTextBox.Position = UDim2.new(0, 0, 0, 0)
 SpeedTextBox.BackgroundColor3 = Color3.fromRGB(36, 36, 42)
 SpeedTextBox.BorderSizePixel = 0
 SpeedTextBox.Text = "50"
@@ -407,20 +427,27 @@ SpeedTextBox.PlaceholderText = "Definir Velocidade (Max 60)..."
 SpeedTextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
 SpeedTextBox.TextSize = 12
 SpeedTextBox.Font = Enum.Font.Code
-SpeedTextBox.Parent = _G.ContentFrameGodz
+SpeedTextBox.Parent = _G.MainScrollFrameGodz
 
 local stc = Instance.new("UICorner")
 stc.CornerRadius = UDim.new(0, 6)
 stc.Parent = SpeedTextBox
 
-_G.BtnToggleSpeedGodz = criarBotaoAcao("BtnToggleSpeed", "SPEED AMORTECIDO: DESATIVADO", Color3.fromRGB(231, 76, 60), _G.ContentFrameGodz)
-_G.BtnToggleSpeedGodz.Position = UDim2.new(0, 0, 0, 38)
+_G.BtnToggleSpeedGodz = criarBotaoAcao("BtnToggleSpeed", "SPEED AMORTECIDO: DESATIVADO", Color3.fromRGB(231, 76, 60), _G.MainScrollFrameGodz)
 
+criarSeparador("FLY", _G.MainScrollFrameGodz)
+_G.BtnToggleFlyGodz = criarBotaoAcao("BtnToggleFly", "BOTÃO FLUTUANTE FLY: OFF", Color3.fromRGB(231, 76, 60), _G.MainScrollFrameGodz)
+
+criarSeparador("NOCLIP", _G.MainScrollFrameGodz)
+_G.BtnToggleNoclipGodz = criarBotaoAcao("BtnToggleNoclip", "BOTÃO FLUTUANTE NOCLIP: OFF", Color3.fromRGB(231, 76, 60), _G.MainScrollFrameGodz)
+
+-- OUTRAS ABAS
 _G.BtnToggleESPGodz = criarBotaoAcao("BtnToggleESP", "LIGAR ESP MASTER: DESATIVADO", Color3.fromRGB(231, 76, 60), _G.EspScrollFrameGodz)
 _G.BtnToggleBoxGodz = criarBotaoAcao("BtnToggleBox", "ESP QUADRO 2D: ATIVADO", Color3.fromRGB(46, 204, 113), _G.EspScrollFrameGodz)
 _G.BtnToggleSkeletonGodz = criarBotaoAcao("BtnToggleSkeleton", "ESP SKELETO + HEAD: ATIVADO", Color3.fromRGB(46, 204, 113), _G.EspScrollFrameGodz)
 _G.BtnToggleNameGodz = criarBotaoAcao("BtnToggleName", "ESP NOME DO PLAYER: ATIVADO", Color3.fromRGB(46, 204, 113), _G.EspScrollFrameGodz)
 _G.BtnToggleHealthGodz = criarBotaoAcao("BtnToggleHealth", "ESP BARRA DE VIDA: ATIVADO", Color3.fromRGB(46, 204, 113), _G.EspScrollFrameGodz)
+_G.BtnToggleCarGodz = criarBotaoAcao("BtnToggleCar", "ESP CARROS: DESATIVADO", Color3.fromRGB(231, 76, 60), _G.EspScrollFrameGodz) -- NOVO BOTAO CARROS
 
 _G.BtnTpGaragem = criarBotaoAcao("BtnTpGaragem", "TELEPORTAR P/ GARAGEM", Color3.fromRGB(230, 126, 34), _G.TpScrollFrameGodz)
 
@@ -446,9 +473,9 @@ vtc.CornerRadius = UDim.new(0, 6)
 vtc.Parent = ViewTextBox
 
 _G.BtnToggleViewGodz = criarBotaoAcao("BtnToggleView", "ASSISTIR JOGADOR", Color3.fromRGB(180, 40, 40), _G.ViewScrollFrameGodz)
-_G.BtnToggleNoclipGodz = criarBotaoAcao("BtnToggleNoclip", "BOTÃO FLUTUANTE NOCLIP: OFF", Color3.fromRGB(231, 76, 60), _G.NoclipScrollFrameGodz)
 
 _G.BtnToggleAimGodz = criarBotaoAcao("BtnToggleAim", "SISTEMA AIMBOT: OFF", Color3.fromRGB(231, 76, 60), _G.AimScrollFrameGodz)
+_G.BtnToggleAimFloatGodz = criarBotaoAcao("BtnToggleAimFloat", "BOTÃO FLUTUANTE AIM: OFF", Color3.fromRGB(231, 76, 60), _G.AimScrollFrameGodz) 
 _G.BtnToggleAimPartGodz = criarBotaoAcao("BtnToggleAimPart", "MIRA FOCADA: CABEÇA", Color3.fromRGB(155, 89, 182), _G.AimScrollFrameGodz) 
 
 local AimFovTextBox = Instance.new("TextBox")
@@ -470,9 +497,8 @@ _G.BtnToggleAimTeamGodz = criarBotaoAcao("BtnToggleAimTeam", "TEAM CHECK: OFF", 
 _G.BtnToggleAimKillGodz = criarBotaoAcao("BtnToggleAimKill", "KILL CHECK: OFF", Color3.fromRGB(231, 76, 60), _G.AimScrollFrameGodz)
 _G.BtnToggleAimWallGodz = criarBotaoAcao("BtnToggleAimWall", "WALL CHECK: OFF", Color3.fromRGB(231, 76, 60), _G.AimScrollFrameGodz)
 
-_G.BtnToggleFlyGodz = criarBotaoAcao("BtnToggleFly", "BOTÃO FLUTUANTE FLY: OFF", Color3.fromRGB(231, 76, 60), _G.FlyScrollFrameGodz)
 
--- UI DA ABA 9 (TP PLY)
+-- UI DA ABA TP PLY
 local TpPlayerTextBox = Instance.new("TextBox")
 TpPlayerTextBox.Size = UDim2.new(1, 0, 0, 32)
 TpPlayerTextBox.BackgroundColor3 = Color3.fromRGB(36, 36, 42)
@@ -490,8 +516,15 @@ tptc.Parent = TpPlayerTextBox
 
 _G.BtnTpPlayerGodz = criarBotaoAcao("BtnTpPlayer", "TELEPORTAR (Freeze)", Color3.fromRGB(39, 174, 96), _G.TpPlyScrollFrameGodz)
 
+-- BOTÕES DA ABA OPEN
+criarSeparador("ABRIR LOCAIS", _G.OpenScrollFrameGodz)
+_G.BtnOpenFabrica = criarBotaoAcao("BtnOpenFabrica", "ABRIR FÁBRICA DE ARMA", Color3.fromRGB(192, 57, 43), _G.OpenScrollFrameGodz)
+_G.BtnOpenMercadoNegro = criarBotaoAcao("BtnOpenMercadoNegro", "ABRIR MERCADO NEGRO", Color3.fromRGB(44, 62, 80), _G.OpenScrollFrameGodz)
+_G.BtnOpenMercadinho = criarBotaoAcao("BtnOpenMercadinho", "ABRIR MERCADINHO", Color3.fromRGB(39, 174, 96), _G.OpenScrollFrameGodz)
+
 _G.HubLogicaPronta = true
 
+-- LÓGICA ESP MASTER
 local cacheESP = {}
 
 local function removerESP(anyPlayerName)
@@ -556,7 +589,7 @@ local function criarVinculoESP(p)
     textLabel.Font = Enum.Font.Code
     textLabel.TextStrokeTransparency = 0.3
     textLabel.TextXAlignment = Enum.TextXAlignment.Center
-    textLabel.Text = p.DisplayName or p.Name
+    textLabel.Text = "" 
     textLabel.Parent = playerGroup
     
     local circleFrame = Instance.new("Frame")
@@ -698,9 +731,10 @@ RunService.Heartbeat:Connect(function()
                     end
                     
                     if _G.EspNameTrack then
-                        data.NameTag.Text = hum.Health <= 0 and (p.DisplayName or p.Name) .. " [MORTO]" or p.DisplayName or p.Name
-                        data.NameTag.Position = UDim2.new(0, topPos.X - 100, 0, topPos.Y - 16)
-                        data.NameTag.Size = UDim2.new(0, 200, 0, 15)
+                        local textoMorto = hum.Health <= 0 and " [MORTO]" or ""
+                        data.NameTag.Text = "Apelido: " .. (p.DisplayName or p.Name) .. textoMorto .. "\nNome: " .. p.Name
+                        data.NameTag.Position = UDim2.new(0, topPos.X - 100, 0, topPos.Y - 26) 
+                        data.NameTag.Size = UDim2.new(0, 200, 0, 25) 
                         data.NameTag.Visible = true
                         data.NameTag.TextColor3 = corAtual
                     else
@@ -1039,6 +1073,75 @@ _G.BtnToggleFlyGodz.MouseButton1Click:Connect(function()
     alternarBotaoFlutuanteFly(_G.FlyActiveGodz)
 end)
 
+local function alternarBotaoFlutuanteAim(ligar)
+    if ligar then
+        if _G.AimRoundBtn then pcall(function() _G.AimRoundBtn:Destroy() end) end
+        
+        local roundBtn = Instance.new("TextButton")
+        roundBtn.Size = UDim2.new(0, 50, 0, 50)
+        roundBtn.Position = UDim2.new(0.1, 0, 0.38, 0) 
+        roundBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+        roundBtn.Text = "🎯"
+        roundBtn.TextSize = 24
+        roundBtn.Font = Enum.Font.Roboto 
+        roundBtn.Active = true
+        roundBtn.Parent = screenGui
+        
+        local btnCorner = Instance.new("UICorner")
+        btnCorner.CornerRadius = UDim.new(1, 0)
+        btnCorner.Parent = roundBtn
+        
+        local btnStroke = Instance.new("UIStroke")
+        btnStroke.Color = Color3.fromRGB(155, 89, 182)
+        btnStroke.Thickness = 2
+        btnStroke.Parent = roundBtn
+        
+        local aDrag, aDragInput, aDragStart, aStartPos
+        roundBtn.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                aDrag = true
+                aDragStart = input.Position
+                aStartPos = roundBtn.Position
+                input.Changed:Connect(function()
+                    if input.UserInputState == Enum.UserInputState.End then aDrag = false end
+                end)
+            end
+        end)
+        
+        roundBtn.InputChanged:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then aDragInput = input end
+        end)
+        
+        if _G.AimGlobalDrag then _G.AimGlobalDrag:Disconnect() end
+        _G.AimGlobalDrag = UserInputService.InputChanged:Connect(function(input)
+            if input == aDragInput and aDrag then
+                local delta = input.Position - aDragStart
+                roundBtn.Position = UDim2.new(aStartPos.X.Scale, aStartPos.X.Offset + delta.X, aStartPos.Y.Scale, aStartPos.Y.Offset + delta.Y)
+            end
+        end)
+        
+        roundBtn.MouseButton1Click:Connect(function()
+            _G.AimbotActiveGodz = not _G.AimbotActiveGodz
+            roundBtn.BackgroundColor3 = _G.AimbotActiveGodz and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(35, 35, 35)
+            atualizarInterface()
+        end)
+        
+        roundBtn.BackgroundColor3 = _G.AimbotActiveGodz and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(35, 35, 35)
+        _G.AimRoundBtn = roundBtn
+    else
+        if _G.AimGlobalDrag then _G.AimGlobalDrag:Disconnect() _G.AimGlobalDrag = nil end
+        if _G.AimRoundBtn then pcall(function() _G.AimRoundBtn:Destroy() end) _G.AimRoundBtn = nil end
+    end
+end
+
+_G.BtnToggleAimFloatGodz.MouseButton1Click:Connect(function()
+    _G.AimFloatActive = not _G.AimFloatActive
+    _G.BtnToggleAimFloatGodz.BackgroundColor3 = _G.AimFloatActive and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
+    _G.BtnToggleAimFloatGodz.Text = _G.AimFloatActive and "BOTÃO FLUTUANTE AIM: ON" or "BOTÃO FLUTUANTE AIM: OFF"
+    alternarBotaoFlutuanteAim(_G.AimFloatActive)
+end)
+
+
 local function encontrarAlvoMaisProximo()
     local alvoMaisProximo = nil
     local menorDistanciaNaTela = _G.AimFovValue / 2
@@ -1116,7 +1219,13 @@ RunService:BindToRenderStep("AimbotMobileLock", Enum.RenderPriority.Camera.Value
     end
 end)
 
-_G.BtnToggleAimGodz.MouseButton1Click:Connect(function() _G.AimbotActiveGodz = not _G.AimbotActiveGodz atualizarInterface() end)
+_G.BtnToggleAimGodz.MouseButton1Click:Connect(function() 
+    _G.AimbotActiveGodz = not _G.AimbotActiveGodz 
+    atualizarInterface() 
+    if _G.AimRoundBtn then 
+        _G.AimRoundBtn.BackgroundColor3 = _G.AimbotActiveGodz and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(35, 35, 35)
+    end
+end)
 _G.BtnToggleAimPartGodz.MouseButton1Click:Connect(function() _G.AimTargetPart = _G.AimTargetPart == "Head" and "Torso" or "Head" atualizarInterface() end)
 _G.BtnToggleAimTeamGodz.MouseButton1Click:Connect(function() _G.AimTeamCheck = not _G.AimTeamCheck atualizarInterface() end)
 _G.BtnToggleAimKillGodz.MouseButton1Click:Connect(function() _G.AimKillCheck = not _G.AimKillCheck atualizarInterface() end)
@@ -1128,7 +1237,6 @@ AimFovTextBox.FocusLost:Connect(function()
     fovCircle.Size = UDim2.new(0, _G.AimFovValue, 0, _G.AimFovValue)
 end)
 
--- NOVA LÓGICA DE TP PLAYER ACOPLADA AO BOTÃO DA ABA 9
 _G.BtnTpPlayerGodz.MouseButton1Click:Connect(function()
     local targetName = TpPlayerTextBox.Text
     local targetPlayer = nil
@@ -1150,8 +1258,6 @@ _G.BtnTpPlayerGodz.MouseButton1Click:Connect(function()
             _G.BtnTpPlayerGodz.BackgroundColor3 = Color3.fromRGB(230, 126, 34)
             
             task.spawn(function()
-                -- Em vez de instanciar uma Part, deixamos o personagem ancorado no ar enquanto movemos.
-                -- Isso previne quedas sem precisar instanciar blocos que podem ser bloqueados pela engine em scripts locais.
                 myRoot.Anchored = true
                 
                 while targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") and (myRoot.Position - targetRoot.Position).Magnitude > 4 do
@@ -1176,6 +1282,92 @@ _G.BtnTpPlayerGodz.MouseButton1Click:Connect(function()
     end
 end)
 
+-- SISTEMA DE ESP DE CARROS INTEGRADO
+local espObjectsCarros = {}
+local renderConnectionsCarros = {}
+local carAddedConnection, carRemovedConnection
+
+local function limparESPCarro(carro)
+    if espObjectsCarros[carro] then
+        pcall(function() espObjectsCarros[carro]:Destroy() end)
+        espObjectsCarros[carro] = nil
+    end
+    if renderConnectionsCarros[carro] then
+        pcall(function() renderConnectionsCarros[carro]:Disconnect() end)
+        renderConnectionsCarros[carro] = nil
+    end
+end
+
+local function criarESPCarro(carro)
+    if not _G.EspCarTrack then return end
+    if not carro:IsA("Model") and not carro:IsA("BasePart") then return end
+    if espObjectsCarros[carro] then return end
+
+    local rootPart = carro.PrimaryPart or carro:FindFirstChild("HumanoidRootPart") or carro:FindFirstChildWhichIsA("BasePart")
+    if not rootPart then return end
+
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "CarESP_" .. carro.Name
+    billboard.Adornee = rootPart
+    billboard.Size = UDim2.new(0, 200, 0, 50)
+    billboard.StudsOffset = Vector3.new(0, 3, 0)
+    billboard.AlwaysOnTop = true
+
+    local textLabel = Instance.new("TextLabel")
+    textLabel.Parent = billboard
+    textLabel.BackgroundTransparency = 1
+    textLabel.Size = UDim2.new(1, 0, 1, 0)
+    textLabel.Text = carro.Name
+    textLabel.TextColor3 = Color3.fromRGB(0, 255, 255)
+    textLabel.TextStrokeTransparency = 0
+    textLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    textLabel.TextScaled = false
+    textLabel.TextSize = 14
+    textLabel.Font = Enum.Font.Code
+
+    -- Proteção utilizando a GUI baseada na tela segura em vez de poluir o CoreGui solto
+    pcall(function() billboard.Parent = EspContainer end)
+
+    espObjectsCarros[carro] = billboard
+
+    renderConnectionsCarros[carro] = RunService.RenderStepped:Connect(function()
+        if not carro or not carro.Parent or not rootPart or not rootPart.Parent or not _G.EspCarTrack then
+            limparESPCarro(carro)
+            return
+        end
+        
+        local myChar = player.Character
+        if myChar and myChar:FindFirstChild("HumanoidRootPart") then
+            local distance = math.floor((myChar.HumanoidRootPart.Position - rootPart.Position).Magnitude)
+            textLabel.Text = string.format("%s\n[%d m]", carro.Name, distance)
+        end
+    end)
+end
+
+local function gerenciarCarESP()
+    local pastaCarros = Workspace:FindFirstChild("CarrosSpawnados")
+    if not pastaCarros then return end
+
+    if _G.EspCarTrack then
+        for _, carro in ipairs(pastaCarros:GetChildren()) do
+            criarESPCarro(carro)
+        end
+        carAddedConnection = pastaCarros.ChildAdded:Connect(function(carro)
+            task.wait(0.5)
+            criarESPCarro(carro)
+        end)
+        carRemovedConnection = pastaCarros.ChildRemoved:Connect(function(carro)
+            limparESPCarro(carro)
+        end)
+    else
+        if carAddedConnection then carAddedConnection:Disconnect(); carAddedConnection = nil end
+        if carRemovedConnection then carRemovedConnection:Disconnect(); carRemovedConnection = nil end
+        for carro, _ in pairs(espObjectsCarros) do
+            limparESPCarro(carro)
+        end
+    end
+end
+
 
 resetarCoresAbas = function()
     local c = Color3.fromRGB(36, 36, 42) local tc = Color3.fromRGB(160, 160, 170)
@@ -1186,23 +1378,20 @@ resetarCoresAbas = function()
     _G.BtnAba5Godz.BackgroundColor3 = c; _G.BtnAba5Godz.TextColor3 = tc
     _G.BtnAba6Godz.BackgroundColor3 = c; _G.BtnAba6Godz.TextColor3 = tc
     _G.BtnAba7Godz.BackgroundColor3 = c; _G.BtnAba7Godz.TextColor3 = tc
-    _G.BtnAba8Godz.BackgroundColor3 = c; _G.BtnAba8Godz.TextColor3 = tc 
-    _G.BtnAba9Godz.BackgroundColor3 = c; _G.BtnAba9Godz.TextColor3 = tc 
+    _G.BtnAba8Godz.BackgroundColor3 = c; _G.BtnAba8Godz.TextColor3 = tc
 end
 
 atualizarInterface = function()
     resetarCoresAbas()
     
-    SpeedTextBox.Visible = false
-    _G.BtnToggleSpeedGodz.Visible = false
+    _G.MainScrollFrameGodz.Visible = false
     _G.EspScrollFrameGodz.Visible = false
     _G.TpScrollFrameGodz.Visible = false
     _G.ClassScrollFrameGodz.Visible = false
     _G.ViewScrollFrameGodz.Visible = false
-    _G.NoclipScrollFrameGodz.Visible = false
     _G.AimScrollFrameGodz.Visible = false
-    _G.FlyScrollFrameGodz.Visible = false 
-    _G.TpPlyScrollFrameGodz.Visible = false 
+    _G.TpPlyScrollFrameGodz.Visible = false
+    _G.OpenScrollFrameGodz.Visible = false
     
     _G.BtnToggleESPGodz.BackgroundColor3 = _G.SecureRenderLoop and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
     _G.BtnToggleESPGodz.Text = _G.SecureRenderLoop and "LIGAR ESP MASTER: ATIVADO" or "LIGAR ESP MASTER: DESATIVADO"
@@ -1219,6 +1408,9 @@ atualizarInterface = function()
     _G.BtnToggleHealthGodz.BackgroundColor3 = _G.EspHealthTrack and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
     _G.BtnToggleHealthGodz.Text = _G.EspHealthTrack and "ESP BARRA DE VIDA: ATIVADO" or "ESP BARRA DE VIDA: DESATIVADO"
     
+    _G.BtnToggleCarGodz.BackgroundColor3 = _G.EspCarTrack and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
+    _G.BtnToggleCarGodz.Text = _G.EspCarTrack and "ESP CARROS: ATIVADO" or "ESP CARROS: DESATIVADO"
+
     _G.BtnToggleViewGodz.Text = _G.CameraViewActive and "ESPIANDO..." or "ASSISTIR JOGADOR"
     _G.BtnToggleViewGodz.BackgroundColor3 = _G.CameraViewActive and Color3.fromRGB(40, 180, 40) or Color3.fromRGB(180, 40, 40)
     
@@ -1239,13 +1431,15 @@ atualizarInterface = function()
     
     _G.BtnToggleFlyGodz.BackgroundColor3 = _G.FlyActiveGodz and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
     _G.BtnToggleFlyGodz.Text = _G.FlyActiveGodz and "BOTÃO FLUTUANTE FLY: ON" or "BOTÃO FLUTUANTE FLY: OFF"
+
+    _G.BtnToggleNoclipGodz.BackgroundColor3 = _G.NoclipActiveGodz and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
+    _G.BtnToggleNoclipGodz.Text = _G.NoclipActiveGodz and "BOTÃO FLUTUANTE NOCLIP: ON" or "BOTÃO FLUTUANTE NOCLIP: OFF"
     
     if paginaAtual == 1 then
         _G.BtnAba1Godz.BackgroundColor3 = Color3.fromRGB(231, 76, 60); _G.BtnAba1Godz.TextColor3 = Color3.fromRGB(255, 255, 255)
-        SpeedTextBox.Visible = true
-        _G.BtnToggleSpeedGodz.Visible = true
-        _G.StatusLabelGodz.Text = _G.SecureSpeedLoop and "Speed: ATIVO AMORTECEDOR (" .. _G.SpeedBypassValue .. ")" or "Speed: DESATIVADO"
-        _G.StatusLabelGodz.TextColor3 = _G.SecureSpeedLoop and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(255, 255, 255)
+        _G.MainScrollFrameGodz.Visible = true
+        _G.StatusLabelGodz.Text = "Menu Principal Combinado"
+        _G.StatusLabelGodz.TextColor3 = Color3.fromRGB(255, 255, 255)
     elseif paginaAtual == 2 then
         _G.BtnAba2Godz.BackgroundColor3 = Color3.fromRGB(231, 76, 60); _G.BtnAba2Godz.TextColor3 = Color3.fromRGB(255, 255, 255)
         _G.EspScrollFrameGodz.Visible = true
@@ -1268,23 +1462,18 @@ atualizarInterface = function()
         _G.StatusLabelGodz.TextColor3 = _G.CameraViewActive and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(255, 255, 255)
     elseif paginaAtual == 6 then
         _G.BtnAba6Godz.BackgroundColor3 = Color3.fromRGB(231, 76, 60); _G.BtnAba6Godz.TextColor3 = Color3.fromRGB(255, 255, 255)
-        _G.NoclipScrollFrameGodz.Visible = true
-        _G.StatusLabelGodz.Text = "Configurações do Botão Fantasma"
-        _G.StatusLabelGodz.TextColor3 = Color3.fromRGB(255, 255, 255)
-    elseif paginaAtual == 7 then
-        _G.BtnAba7Godz.BackgroundColor3 = Color3.fromRGB(231, 76, 60); _G.BtnAba7Godz.TextColor3 = Color3.fromRGB(255, 255, 255)
         _G.AimScrollFrameGodz.Visible = true
         _G.StatusLabelGodz.Text = _G.AimbotActiveGodz and "Aimbot Ativo: Travando Alvos" or "Configurações de Auxílio de Mira"
         _G.StatusLabelGodz.TextColor3 = _G.AimbotActiveGodz and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(255, 255, 255)
-    elseif paginaAtual == 8 then 
-        _G.BtnAba8Godz.BackgroundColor3 = Color3.fromRGB(231, 76, 60); _G.BtnAba8Godz.TextColor3 = Color3.fromRGB(255, 255, 255)
-        _G.FlyScrollFrameGodz.Visible = true
-        _G.StatusLabelGodz.Text = "Bypass Fly: " .. (_G.FlyActiveGodz and "Botão Criado" or "Botão Oculto")
-        _G.StatusLabelGodz.TextColor3 = _G.FlyActiveGodz and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(255, 255, 255)
-    elseif paginaAtual == 9 then
-        _G.BtnAba9Godz.BackgroundColor3 = Color3.fromRGB(231, 76, 60); _G.BtnAba9Godz.TextColor3 = Color3.fromRGB(255, 255, 255)
+    elseif paginaAtual == 7 then
+        _G.BtnAba7Godz.BackgroundColor3 = Color3.fromRGB(231, 76, 60); _G.BtnAba7Godz.TextColor3 = Color3.fromRGB(255, 255, 255)
         _G.TpPlyScrollFrameGodz.Visible = true
         _G.StatusLabelGodz.Text = "Teleporte até Jogadores"
+        _G.StatusLabelGodz.TextColor3 = Color3.fromRGB(255, 255, 255)
+    elseif paginaAtual == 8 then
+        _G.BtnAba8Godz.BackgroundColor3 = Color3.fromRGB(231, 76, 60); _G.BtnAba8Godz.TextColor3 = Color3.fromRGB(255, 255, 255)
+        _G.OpenScrollFrameGodz.Visible = true
+        _G.StatusLabelGodz.Text = "Abrir Locais do Servidor"
         _G.StatusLabelGodz.TextColor3 = Color3.fromRGB(255, 255, 255)
     end
     
@@ -1299,7 +1488,6 @@ _G.BtnAba5Godz.MouseButton1Click:Connect(function() paginaAtual = 5 atualizarInt
 _G.BtnAba6Godz.MouseButton1Click:Connect(function() paginaAtual = 6 atualizarInterface() end)
 _G.BtnAba7Godz.MouseButton1Click:Connect(function() paginaAtual = 7 atualizarInterface() end)
 _G.BtnAba8Godz.MouseButton1Click:Connect(function() paginaAtual = 8 atualizarInterface() end)
-_G.BtnAba9Godz.MouseButton1Click:Connect(function() paginaAtual = 9 atualizarInterface() end)
 
 SpeedTextBox.FocusLost:Connect(function()
     local val = tonumber(SpeedTextBox.Text)
@@ -1328,6 +1516,13 @@ _G.BtnToggleBoxGodz.MouseButton1Click:Connect(function() _G.EspBoxTrack = not _G
 _G.BtnToggleSkeletonGodz.MouseButton1Click:Connect(function() _G.EspSkeletonTrack = not _G.EspSkeletonTrack atualizarInterface() end)
 _G.BtnToggleNameGodz.MouseButton1Click:Connect(function() _G.EspNameTrack = not _G.EspNameTrack atualizarInterface() end)
 _G.BtnToggleHealthGodz.MouseButton1Click:Connect(function() _G.EspHealthTrack = not _G.EspHealthTrack atualizarInterface() end)
+
+-- CONEXÃO DO BOTÃO ESP CARROS
+_G.BtnToggleCarGodz.MouseButton1Click:Connect(function()
+    _G.EspCarTrack = not _G.EspCarTrack
+    atualizarInterface()
+    gerenciarCarESP()
+end)
 
 _G.BtnTpGaragem.MouseButton1Click:Connect(function()
     pcall(function()
@@ -1372,15 +1567,18 @@ local SpeedConnectionName = getRandomName()
 _G[SpeedConnectionName] = RunService.RenderStepped:Connect(function(deltaTime)
     if not screenGui or not screenGui.Parent then
         _G.SecureSpeedLoop = false; _G.SecureRenderLoop = false; _G.CameraViewActive = false; _G.AimbotActiveGodz = false; _G.FlyingStateGodz = false
+        _G.EspCarTrack = false -- Desliga junto com as outras funções globais
         pcall(function() RunService:UnbindFromRenderStep("AimbotMobileLock") end)
         if _G.ViewCamConnection then pcall(function() _G.ViewCamConnection:Disconnect() end) end
         if _G.NoclipRoundBtn then pcall(function() _G.NoclipRoundBtn:Destroy() end) end
         if _G.FlyRoundBtn then pcall(function() _G.FlyRoundBtn:Destroy() end) end
+        if _G.AimRoundBtn then pcall(function() _G.AimRoundBtn:Destroy() end) end
         if _G.FlyConnectionGodz then pcall(function() _G.FlyConnectionGodz:Disconnect() end) end
         if _G.FlyPlatformGodz then pcall(function() _G.FlyPlatformGodz:Destroy() end) end
         if fovCircle then pcall(function() fovCircle:Destroy() end) end
         if aimTracer then pcall(function() aimTracer:Destroy() end) end
         clearAllESP()
+        gerenciarCarESP() -- Limpa todos os carros também
         EspContainer:Destroy()
         if _G[SpeedConnectionName] then _G[SpeedConnectionName]:Disconnect() end
         return
@@ -1398,6 +1596,34 @@ _G[SpeedConnectionName] = RunService.RenderStepped:Connect(function(deltaTime)
             hrp.CFrame = hrp.CFrame:Lerp(CFrame.new(nextPosition) * hrp.CFrame.Rotation, 0.8)
         end
     end
+end)
+
+-- CONEXÕES DOS BOTÕES DA ABA OPEN
+_G.BtnOpenFabrica.MouseButton1Click:Connect(function()
+    pcall(function()
+        local Event = game:GetService("ReplicatedStorage").FabricaRemotes.AbreFabrica
+        firesignal(Event.OnClientEvent)
+        _G.StatusLabelGodz.Text = "Fábrica de Arma aberta!"
+        _G.StatusLabelGodz.TextColor3 = Color3.fromRGB(46, 204, 113)
+    end)
+end)
+
+_G.BtnOpenMercadoNegro.MouseButton1Click:Connect(function()
+    pcall(function()
+        local Event = game:GetService("ReplicatedStorage").Mercadinho.AbreMercadoNegro
+        firesignal(Event.OnClientEvent)
+        _G.StatusLabelGodz.Text = "Mercado Negro aberto!"
+        _G.StatusLabelGodz.TextColor3 = Color3.fromRGB(46, 204, 113)
+    end)
+end)
+
+_G.BtnOpenMercadinho.MouseButton1Click:Connect(function()
+    pcall(function()
+        local Event = game:GetService("ReplicatedStorage").Mercadinho.AbreMercado
+        firesignal(Event.OnClientEvent)
+        _G.StatusLabelGodz.Text = "Mercadinho aberto!"
+        _G.StatusLabelGodz.TextColor3 = Color3.fromRGB(46, 204, 113)
+    end)
 end)
 
 atualizarInterface()
