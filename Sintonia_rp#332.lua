@@ -1,4 +1,4 @@
--- =============================================================================
+ -- =============================================================================
 -- [1] THREAD DO SCRIPT PRINCIPAL (GODZ.NK PAINEL)
 -- =============================================================================
 task.spawn(function()
@@ -228,7 +228,7 @@ task.spawn(function()
     tabsScroll.CanvasSize = UDim2.new(2.5, 0, 0, 0) 
     tabsScroll.ScrollBarThickness = 0
     tabsScroll.ScrollingDirection = Enum.ScrollingDirection.X
-    tabsScroll.Parent = _G.ContainerFrameGodz
+    tabsScroll.Parent = tabsScroll.Parent and tabsScroll.Parent:FindFirstChild("ScrollingFrame") or _G.ContainerFrameGodz
 
     local tabsLayout = Instance.new("UIListLayout")
     tabsLayout.FillDirection = Enum.FillDirection.Horizontal
@@ -913,7 +913,11 @@ task.spawn(function()
         end
         
         if alvoAtual and alvoAtual.Character and alvoAtual.Character:FindFirstChild("HumanoidRootPart") then
-            local pos, naTela = Camera:WorldToViewportPoint(alvoAtual.Character.HumanoidRootPart.Position)
+            -- MODIFICAÇÃO: A linha ESP agora busca a cabeça do alvo para precisão visual
+            local headPart = alvoAtual.Character:FindFirstChild("Head")
+            local alvoPosicaoVisivel = headPart and headPart.Position or alvoAtual.Character.HumanoidRootPart.Position
+            
+            local pos, naTela = Camera:WorldToViewportPoint(alvoPosicaoVisivel)
             if naTela then
                 linhaESP.Visible = true
                 linhaESP.From = centroTela
@@ -925,12 +929,22 @@ task.spawn(function()
             if isPulling and playerSendoPuxado and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
                 local meuRoot = player.Character.HumanoidRootPart
                 local targetRoot = playerSendoPuxado.Character.HumanoidRootPart
+                local targetHead = playerSendoPuxado.Character:FindFirstChild("Head")
                 local camCFrame = Camera.CFrame
                 
                 local distanciaAteMim = (meuRoot.Position - camCFrame.Position):Dot(camCFrame.LookVector)
                 local posicaoFinal = camCFrame.Position + (camCFrame.LookVector * (distanciaAteMim + 5))
                 
-                targetRoot.CFrame = CFrame.new(posicaoFinal, posicaoFinal + camCFrame.LookVector)
+                -- MODIFICAÇÃO PRINCIPAL: Calcula o deslocamento vertical da cabeça em relação ao RootPart
+                if targetHead then
+                    local offsetY = targetHead.Position.Y - targetRoot.Position.Y
+                    -- Subtrai o offset para alinhar perfeitamente a cabeça com a linha de visão
+                    local posicaoAjustada = posicaoFinal - Vector3.new(0, offsetY, 0)
+                    targetRoot.CFrame = CFrame.new(posicaoAjustada, posicaoAjustada + camCFrame.LookVector)
+                else
+                    targetRoot.CFrame = CFrame.new(posicaoFinal, posicaoFinal + camCFrame.LookVector)
+                end
+                
                 targetRoot.AssemblyLinearVelocity = Vector3.new(0,0,0)
                 targetRoot.AssemblyAngularVelocity = Vector3.new(0,0,0)
             end
@@ -951,7 +965,7 @@ task.spawn(function()
             roundBtn.Size = UDim2.new(0, 50, 0, 50)
             roundBtn.Position = UDim2.new(0.1, 0, 0.74, 0) 
             roundBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-            roundBtn.Text = "🧲"
+            roundBtn.Text = "🏌️"
             roundBtn.TextSize = 24
             roundBtn.Font = Enum.Font.Code
             roundBtn.Active = true
