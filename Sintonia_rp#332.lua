@@ -1,6 +1,3 @@
- -- =============================================================================
--- [1] THREAD DO SCRIPT PRINCIPAL (GODZ.NK PAINEL)
--- =============================================================================
 task.spawn(function()
     _G.HubVisualCarregada = false
     _G.HubLogicaPronta = false
@@ -92,6 +89,7 @@ task.spawn(function()
     _G.EspNameTrack = true
     _G.EspHealthTrack = true
     _G.EspCarTrack = false 
+    _G.EspNomesOcultos = {} -- Tabela global para armazenar os nomes ocultados
 
     local atualizarInterface
     local resetarCoresAbas
@@ -313,7 +311,7 @@ task.spawn(function()
     _G.EspScrollFrameGodz.Size = UDim2.new(1, 0, 1, -5)
     _G.EspScrollFrameGodz.BackgroundTransparency = 1
     _G.EspScrollFrameGodz.BorderSizePixel = 0
-    _G.EspScrollFrameGodz.CanvasSize = UDim2.new(0, 0, 2.0, 0)
+    _G.EspScrollFrameGodz.CanvasSize = UDim2.new(0, 0, 2.5, 0) 
     _G.EspScrollFrameGodz.ScrollBarThickness = 2
     _G.EspScrollFrameGodz.ScrollBarImageColor3 = Color3.fromRGB(60, 60, 70)
     _G.EspScrollFrameGodz.Visible = false
@@ -464,6 +462,25 @@ task.spawn(function()
     _G.BtnToggleNameGodz = criarBotaoAcao("BtnToggleName", "ESP NOME DO PLAYER: ATIVADO", Color3.fromRGB(46, 204, 113), _G.EspScrollFrameGodz)
     _G.BtnToggleHealthGodz = criarBotaoAcao("BtnToggleHealth", "ESP BARRA DE VIDA: ATIVADO", Color3.fromRGB(46, 204, 113), _G.EspScrollFrameGodz)
     _G.BtnToggleCarGodz = criarBotaoAcao("BtnToggleCar", "ESP CARROS: DESATIVADO", Color3.fromRGB(231, 76, 60), _G.EspScrollFrameGodz) 
+
+    -- ADICIONADO: Elementos visuais para Ocultar ESP Nome
+    criarSeparador("OCULTAR ESP NOME", _G.EspScrollFrameGodz)
+    local OcultarNameTextBox = Instance.new("TextBox")
+    OcultarNameTextBox.Size = UDim2.new(1, 0, 0, 32)
+    OcultarNameTextBox.BackgroundColor3 = Color3.fromRGB(36, 36, 42)
+    OcultarNameTextBox.BorderSizePixel = 0
+    OcultarNameTextBox.Text = ""
+    OcultarNameTextBox.PlaceholderText = "Nome do jogador para ocultar..."
+    OcultarNameTextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+    OcultarNameTextBox.TextSize = 12
+    OcultarNameTextBox.Font = Enum.Font.Code
+    OcultarNameTextBox.Parent = _G.EspScrollFrameGodz
+
+    local ontc = Instance.new("UICorner")
+    ontc.CornerRadius = UDim.new(0, 6)
+    ontc.Parent = OcultarNameTextBox
+
+    local BtnOcultarNameGodz = criarBotaoAcao("BtnOcultarName", "OCULTAR JOGADOR", Color3.fromRGB(192, 57, 43), _G.EspScrollFrameGodz)
 
     _G.BtnTpGaragem = criarBotaoAcao("BtnTpGaragem", "TELEPORTAR P/ GARAGEM", Color3.fromRGB(230, 126, 34), _G.TpScrollFrameGodz)
 
@@ -730,9 +747,14 @@ task.spawn(function()
                             data.Box.Visible = false
                         end
                         
+                        -- ALTERADO: Agora mantém a tag e formata com "nao definido" caso o player esteja na lista
                         if _G.EspNameTrack then
-                            local textoMorto = hum.Health <= 0 and " [MORTO]" or ""
-                            data.NameTag.Text = "Apelido: " .. (p.DisplayName or p.Name) .. textoMorto .. "\nNome: " .. p.Name
+                            if _G.EspNomesOcultos[p.Name:lower()] then
+                                data.NameTag.Text = "Apelido: nao definido\nNome: nao definido"
+                            else
+                                local textoMorto = hum.Health <= 0 and " [MORTO]" or ""
+                                data.NameTag.Text = "Apelido: " .. (p.DisplayName or p.Name) .. textoMorto .. "\nNome: " .. p.Name
+                            end
                             data.NameTag.Position = UDim2.new(0, topPos.X - 100, 0, topPos.Y - 26) 
                             data.NameTag.Size = UDim2.new(0, 200, 0, 25) 
                             data.NameTag.Visible = true
@@ -913,7 +935,6 @@ task.spawn(function()
         end
         
         if alvoAtual and alvoAtual.Character and alvoAtual.Character:FindFirstChild("HumanoidRootPart") then
-            -- MODIFICAÇÃO: A linha ESP agora busca a cabeça do alvo para precisão visual
             local headPart = alvoAtual.Character:FindFirstChild("Head")
             local alvoPosicaoVisivel = headPart and headPart.Position or alvoAtual.Character.HumanoidRootPart.Position
             
@@ -935,10 +956,8 @@ task.spawn(function()
                 local distanciaAteMim = (meuRoot.Position - camCFrame.Position):Dot(camCFrame.LookVector)
                 local posicaoFinal = camCFrame.Position + (camCFrame.LookVector * (distanciaAteMim + 5))
                 
-                -- MODIFICAÇÃO PRINCIPAL: Calcula o deslocamento vertical da cabeça em relação ao RootPart
                 if targetHead then
                     local offsetY = targetHead.Position.Y - targetRoot.Position.Y
-                    -- Subtrai o offset para alinhar perfeitamente a cabeça com a linha de visão
                     local posicaoAjustada = posicaoFinal - Vector3.new(0, offsetY, 0)
                     targetRoot.CFrame = CFrame.new(posicaoAjustada, posicaoAjustada + camCFrame.LookVector)
                 else
@@ -1347,7 +1366,7 @@ task.spawn(function()
         return alvoMaisProximo, estaVisivelAlvo
     end
 
-    RunService:BindToRenderStep("AimbotMobileLock", Enum.RenderPriority.Camera.Value + 1, function()
+    RunService.Heartbeat:Connect(function()
         if _G.AimbotActiveGodz then
             fovCircle.Visible = true 
             local centroDaTela = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
@@ -1679,6 +1698,32 @@ task.spawn(function()
         _G.EspCarTrack = not _G.EspCarTrack
         atualizarInterface()
         gerenciarCarESP()
+    end)
+
+    -- ADICIONADO: Nova função "ocultar" posicionada conforme solicitado
+    local function ocultar(targetName)
+        if targetName ~= "" then
+            local encontrado = false
+            for _, p in pairs(Players:GetPlayers()) do
+                if p.Name:lower():sub(1, #targetName) == targetName:lower() or (p.DisplayName and p.DisplayName:lower():sub(1, #targetName) == targetName:lower()) then
+                    _G.EspNomesOcultos[p.Name:lower()] = true
+                    _G.StatusLabelGodz.Text = "Nome modificado: " .. p.Name
+                    _G.StatusLabelGodz.TextColor3 = Color3.fromRGB(46, 204, 113)
+                    OcultarNameTextBox.Text = ""
+                    encontrado = true
+                    break
+                end
+            end
+            if not encontrado then
+                _G.StatusLabelGodz.Text = "Jogador não encontrado!"
+                _G.StatusLabelGodz.TextColor3 = Color3.fromRGB(231, 76, 60)
+            end
+        end
+    end
+
+    -- ADICIONADO: Lógica do clique do botão ocultar nome refatorada para chamar a nova função
+    BtnOcultarNameGodz.MouseButton1Click:Connect(function()
+        ocultar(OcultarNameTextBox.Text)
     end)
 
     _G.BtnTpGaragem.MouseButton1Click:Connect(function()
