@@ -30,6 +30,7 @@ task.spawn(function()
     if _G.MagGlobalDrag then pcall(function() _G.MagGlobalDrag:Disconnect() end) _G.MagGlobalDrag = nil end
 
     if _G.FlyConnectionGodz then pcall(function() _G.FlyConnectionGodz:Disconnect() end) _G.FlyConnectionGodz = nil end
+    if _G.FlyAdvancedConnectionGodz then pcall(function() _G.FlyAdvancedConnectionGodz:Disconnect() end) _G.FlyAdvancedConnectionGodz = nil end
     if _G.FlyPlatformGodz then pcall(function() _G.FlyPlatformGodz:Destroy() end) _G.FlyPlatformGodz = nil end
     if _G.FlyRoundBtn then pcall(function() _G.FlyRoundBtn:Destroy() end) _G.FlyRoundBtn = nil end
     if _G.NoclipRoundBtn then pcall(function() _G.NoclipRoundBtn:Destroy() end) _G.NoclipRoundBtn = nil end
@@ -43,13 +44,7 @@ task.spawn(function()
         end
     end)
 
-    for _, v in ipairs(game:GetService("CoreGui"):GetChildren()) do
-        if v:IsA("ScreenGui") and v:FindFirstChildOfClass("Frame") and not v:FindFirstChild("titleFrame") then
-            if #v:GetChildren() == 1 or v:FindFirstChild("EspPlayerGroup") then
-                v:Destroy()
-            end
-        end
-    end
+    -- Removida limpeza automática agressiva que poderia causar conflitos com a própria interface
 
     setgarbagecollection = setgarbagecollection or function() end
     pcall(function() gcinfo() end)
@@ -59,11 +54,13 @@ task.spawn(function()
     _G.SecureSpeedLoop = false
     _G.NoclipActiveGodz = false
     _G.FlyActiveGodz = false
-    _G.FlyingStateGodz = false
+    _G.FlyPlatformActiveGodz = false -- Estado do fly plataforma
+    _G.FlyAdvancedActiveGodz = false -- Estado do fly avançado
 
     -- Estados Aim Magnetic
     _G.MagActiveGodz = false
     _G.MagFloatActive = false
+    _G.StreamerModeActiveGodz = false
     local playerSendoPuxado = nil
     local alvoAtual = nil
     local isPulling = false
@@ -89,6 +86,7 @@ task.spawn(function()
     _G.EspNameTrack = true
     _G.EspHealthTrack = true
     _G.EspCarTrack = false 
+    _G.EspMoneyTrack = false
     _G.EspNomesOcultos = {} -- Tabela global para armazenar os nomes ocultados
 
     local atualizarInterface
@@ -226,7 +224,7 @@ task.spawn(function()
     tabsScroll.CanvasSize = UDim2.new(2.5, 0, 0, 0) 
     tabsScroll.ScrollBarThickness = 0
     tabsScroll.ScrollingDirection = Enum.ScrollingDirection.X
-    tabsScroll.Parent = tabsScroll.Parent and tabsScroll.Parent:FindFirstChild("ScrollingFrame") or _G.ContainerFrameGodz
+    tabsScroll.Parent = _G.ContainerFrameGodz
 
     local tabsLayout = Instance.new("UIListLayout")
     tabsLayout.FillDirection = Enum.FillDirection.Horizontal
@@ -255,10 +253,10 @@ task.spawn(function()
     _G.BtnAba2Godz = criarBotaoAba("ESP", 2, 50)
     _G.BtnAba3Godz = criarBotaoAba("TP", 3, 45)
     _G.BtnAba4Godz = criarBotaoAba("CLASS", 4, 55)
-    _G.BtnAba5Godz = criarBotaoAba("MAG", 5, 45)
-    _G.BtnAba6Godz = criarBotaoAba("AIM", 6, 45)
-    _G.BtnAba7Godz = criarBotaoAba("TP PLY", 7, 55)
-    _G.BtnAba8Godz = criarBotaoAba("OPEN", 8, 50)
+    _G.BtnAba6Godz = criarBotaoAba("AIM", 5, 45)
+    _G.BtnAba7Godz = criarBotaoAba("TP PLY", 6, 55)
+    _G.BtnAba8Godz = criarBotaoAba("OPEN", 7, 50)
+    _G.BtnAba9Godz = criarBotaoAba("SYSTEM", 8, 90)
 
     _G.StatusLabelGodz = Instance.new("TextLabel")
     _G.StatusLabelGodz.Size = UDim2.new(0.9, 0, 0, 25)
@@ -355,20 +353,7 @@ task.spawn(function()
     classLayout.Padding = UDim.new(0, 6)
     classLayout.Parent = _G.ClassScrollFrameGodz
 
-    _G.MagScrollFrameGodz = Instance.new("ScrollingFrame")
-    _G.MagScrollFrameGodz.Size = UDim2.new(1, 0, 1, -5)
-    _G.MagScrollFrameGodz.BackgroundTransparency = 1
-    _G.MagScrollFrameGodz.BorderSizePixel = 0
-    _G.MagScrollFrameGodz.CanvasSize = UDim2.new(0, 0, 1.2, 0)
-    _G.MagScrollFrameGodz.ScrollBarThickness = 0
-    _G.MagScrollFrameGodz.Visible = false
-    _G.MagScrollFrameGodz.Parent = _G.ContentFrameGodz
-
-    local magLayout = Instance.new("UIListLayout")
-    magLayout.FillDirection = Enum.FillDirection.Vertical
-    magLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    magLayout.Padding = UDim.new(0, 8)
-    magLayout.Parent = _G.MagScrollFrameGodz
+    -- Aba MAG removida e conteúdo movido para AIM
 
     _G.AimScrollFrameGodz = Instance.new("ScrollingFrame")
     _G.AimScrollFrameGodz.Size = UDim2.new(1, 0, 1, -5)
@@ -411,6 +396,24 @@ task.spawn(function()
     _G.OpenScrollFrameGodz.Visible = false
     _G.OpenScrollFrameGodz.Parent = _G.ContentFrameGodz
 
+    _G.SystemScrollFrameGodz = Instance.new("ScrollingFrame")
+    _G.SystemScrollFrameGodz.Size = UDim2.new(1, 0, 1, -5)
+    _G.SystemScrollFrameGodz.BackgroundTransparency = 1
+    _G.SystemScrollFrameGodz.BorderSizePixel = 0
+    _G.SystemScrollFrameGodz.CanvasSize = UDim2.new(0, 0, 1.2, 0)
+    _G.SystemScrollFrameGodz.ScrollBarThickness = 2
+    _G.SystemScrollFrameGodz.ScrollBarImageColor3 = Color3.fromRGB(60, 60, 70)
+    _G.SystemScrollFrameGodz.Visible = false
+    _G.SystemScrollFrameGodz.Parent = _G.ContentFrameGodz
+
+    local systemLayout = Instance.new("UIListLayout")
+    systemLayout.FillDirection = Enum.FillDirection.Vertical
+    systemLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    systemLayout.Padding = UDim.new(0, 6)
+    systemLayout.Parent = _G.SystemScrollFrameGodz
+
+    -- Removida duplicação do botão Streamer Mode aqui
+
     local openLayout = Instance.new("UIListLayout")
     openLayout.FillDirection = Enum.FillDirection.Vertical
     openLayout.SortOrder = Enum.SortOrder.LayoutOrder
@@ -426,6 +429,98 @@ task.spawn(function()
         local btnCorner = Instance.new("UICorner")
         btnCorner.CornerRadius = UDim.new(0, 6); btnCorner.Parent = btn
         return btn
+    end
+
+    local function criarBotaoCompacto(nome, descricao, cor, pai)
+        -- Container para o layout horizontal
+        local container = Instance.new("Frame")
+        container.Name = "Container_" .. nome
+        container.Size = UDim2.new(1, 0, 0, 28)
+        container.BackgroundTransparency = 1
+        container.BorderSizePixel = 0
+        container.Parent = pai
+
+        -- Label com descrição (70% da largura)
+        local label = Instance.new("TextLabel")
+        label.Name = "Label_" .. nome
+        label.Size = UDim2.new(0.70, -4, 1, 0)
+        label.Position = UDim2.new(0, 0, 0, 0)
+        label.BackgroundColor3 = Color3.fromRGB(36, 36, 42)
+        label.Text = descricao
+        label.TextColor3 = Color3.fromRGB(200, 200, 200)
+        label.Font = Enum.Font.Code
+        label.TextSize = 11
+        label.BorderSizePixel = 0
+        label.Parent = container
+
+        local labelCorner = Instance.new("UICorner")
+        labelCorner.CornerRadius = UDim.new(0, 6)
+        labelCorner.Parent = label
+
+        -- Botão pequeno (28% da largura)
+        local btn = Instance.new("TextButton")
+        btn.Name = nome
+        btn.Size = UDim2.new(0.28, 0, 1, 0)
+        btn.Position = UDim2.new(0.72, 0, 0, 0)
+        btn.BackgroundColor3 = cor
+        btn.Text = "LIGAR"
+        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        btn.Font = Enum.Font.Code
+        btn.TextSize = 10
+        btn.BorderSizePixel = 0
+        btn.Parent = container
+
+        local btnCorner = Instance.new("UICorner")
+        btnCorner.CornerRadius = UDim.new(0, 6)
+        btnCorner.Parent = btn
+
+        return btn, label, container
+    end
+    
+    local function criarBotaoCompactoTp(nome, descricao, cor, pai)
+        -- Container para o layout horizontal
+        local container = Instance.new("Frame")
+        container.Name = "Container_" .. nome
+        container.Size = UDim2.new(1, 0, 0, 28)
+        container.BackgroundTransparency = 1
+        container.BorderSizePixel = 0
+        container.Parent = pai
+
+        -- Label com descrição (70% da largura)
+        local label = Instance.new("TextLabel")
+        label.Name = "Label_" .. nome
+        label.Size = UDim2.new(0.70, -4, 1, 0)
+        label.Position = UDim2.new(0, 0, 0, 0)
+        label.BackgroundColor3 = Color3.fromRGB(36, 36, 42)
+        label.Text = descricao
+        label.TextColor3 = Color3.fromRGB(200, 200, 200)
+        label.Font = Enum.Font.Code
+        label.TextSize = 11
+        label.BorderSizePixel = 0
+        label.Parent = container
+
+        local labelCorner = Instance.new("UICorner")
+        labelCorner.CornerRadius = UDim.new(0, 6)
+        labelCorner.Parent = label
+
+        -- Botão pequeno (28% da largura)
+        local btn = Instance.new("TextButton")
+        btn.Name = nome
+        btn.Size = UDim2.new(0.28, 0, 1, 0)
+        btn.Position = UDim2.new(0.72, 0, 0, 0)
+        btn.BackgroundColor3 = cor
+        btn.Text = "TP"
+        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        btn.Font = Enum.Font.Code
+        btn.TextSize = 10
+        btn.BorderSizePixel = 0
+        btn.Parent = container
+
+        local btnCorner = Instance.new("UICorner")
+        btnCorner.CornerRadius = UDim.new(0, 6)
+        btnCorner.Parent = btn
+
+        return btn, label, container
     end
 
     -- ORGANIZAÇÃO DA ABA MAIN
@@ -447,21 +542,23 @@ task.spawn(function()
     stc.CornerRadius = UDim.new(0, 6)
     stc.Parent = SpeedTextBox
 
-    _G.BtnToggleSpeedGodz = criarBotaoAcao("BtnToggleSpeed", "SPEED AMORTECIDO: DESATIVADO", Color3.fromRGB(231, 76, 60), _G.MainScrollFrameGodz)
+    _G.BtnToggleSpeedGodz, _G.SpeedLabel = criarBotaoCompacto("BtnToggleSpeed", "SPEED BYPESS", Color3.fromRGB(231, 76, 60), _G.MainScrollFrameGodz)
 
     criarSeparador("FLY", _G.MainScrollFrameGodz)
-    _G.BtnToggleFlyGodz = criarBotaoAcao("BtnToggleFly", "BOTÃO FLUTUANTE FLY: OFF", Color3.fromRGB(231, 76, 60), _G.MainScrollFrameGodz)
+    _G.BtnToggleFlyGodz, _G.FlyLabel = criarBotaoCompacto("BtnToggleFly", "FLY PLATAFORM", Color3.fromRGB(231, 76, 60), _G.MainScrollFrameGodz)
+    _G.BtnToggleFlyAdvancedGodz, _G.FlyAdvancedLabel = criarBotaoCompacto("BtnToggleFlyAdvanced", "FLY AVANÇADO", Color3.fromRGB(231, 76, 60), _G.MainScrollFrameGodz)
 
     criarSeparador("NOCLIP", _G.MainScrollFrameGodz)
-    _G.BtnToggleNoclipGodz = criarBotaoAcao("BtnToggleNoclip", "BOTÃO FLUTUANTE NOCLIP: OFF", Color3.fromRGB(231, 76, 60), _G.MainScrollFrameGodz)
+    _G.BtnToggleNoclipGodz, _G.NoclipLabel = criarBotaoCompacto("BtnToggleNoclip", "BOTÃO FLUTUANTE NOCLIP", Color3.fromRGB(231, 76, 60), _G.MainScrollFrameGodz)
 
     -- OUTRAS ABAS
-    _G.BtnToggleESPGodz = criarBotaoAcao("BtnToggleESP", "LIGAR ESP MASTER: DESATIVADO", Color3.fromRGB(231, 76, 60), _G.EspScrollFrameGodz)
-    _G.BtnToggleBoxGodz = criarBotaoAcao("BtnToggleBox", "ESP QUADRO 2D: ATIVADO", Color3.fromRGB(46, 204, 113), _G.EspScrollFrameGodz)
-    _G.BtnToggleSkeletonGodz = criarBotaoAcao("BtnToggleSkeleton", "ESP SKELETO + HEAD: ATIVADO", Color3.fromRGB(46, 204, 113), _G.EspScrollFrameGodz)
-    _G.BtnToggleNameGodz = criarBotaoAcao("BtnToggleName", "ESP NOME DO PLAYER: ATIVADO", Color3.fromRGB(46, 204, 113), _G.EspScrollFrameGodz)
-    _G.BtnToggleHealthGodz = criarBotaoAcao("BtnToggleHealth", "ESP BARRA DE VIDA: ATIVADO", Color3.fromRGB(46, 204, 113), _G.EspScrollFrameGodz)
-    _G.BtnToggleCarGodz = criarBotaoAcao("BtnToggleCar", "ESP CARROS: DESATIVADO", Color3.fromRGB(231, 76, 60), _G.EspScrollFrameGodz) 
+    _G.BtnToggleESPGodz, _G.ESPLabel = criarBotaoCompacto("BtnToggleESP", "LIGAR ESP", Color3.fromRGB(231, 76, 60), _G.EspScrollFrameGodz)
+    _G.BtnToggleBoxGodz, _G.BoxLabel = criarBotaoCompacto("BtnToggleBox", "ESP QUADRO 2D", Color3.fromRGB(46, 204, 113), _G.EspScrollFrameGodz)
+    _G.BtnToggleSkeletonGodz, _G.SkeletonLabel = criarBotaoCompacto("BtnToggleSkeleton", "ESP SKELETO + HEAD", Color3.fromRGB(46, 204, 113), _G.EspScrollFrameGodz)
+    _G.BtnToggleNameGodz, _G.NameLabel = criarBotaoCompacto("BtnToggleName", "ESP NOME DO PLAYER", Color3.fromRGB(46, 204, 113), _G.EspScrollFrameGodz)
+    _G.BtnToggleHealthGodz, _G.HealthLabel = criarBotaoCompacto("BtnToggleHealth", "ESP BARRA DE VIDA", Color3.fromRGB(46, 204, 113), _G.EspScrollFrameGodz)
+    _G.BtnToggleCarGodz, _G.CarLabel = criarBotaoCompacto("BtnToggleCar", "ESP CARROS", Color3.fromRGB(231, 76, 60), _G.EspScrollFrameGodz) 
+    _G.BtnToggleMoneyGodz, _G.MoneyLabel = criarBotaoCompacto("BtnToggleMoney", "ESP DINHEIRO", Color3.fromRGB(231, 76, 60), _G.EspScrollFrameGodz)
 
     -- ADICIONADO: Elementos visuais para Ocultar ESP Nome
     criarSeparador("OCULTAR ESP NOME", _G.EspScrollFrameGodz)
@@ -482,40 +579,67 @@ task.spawn(function()
 
     local BtnOcultarNameGodz = criarBotaoAcao("BtnOcultarName", "OCULTAR JOGADOR", Color3.fromRGB(192, 57, 43), _G.EspScrollFrameGodz)
 
-    _G.BtnTpGaragem = criarBotaoAcao("BtnTpGaragem", "TELEPORTAR P/ GARAGEM", Color3.fromRGB(230, 126, 34), _G.TpScrollFrameGodz)
+    _G.BtnTpGaragem, _G.TpGaragemLabel = criarBotaoCompactoTp("BtnTpGaragem", "TP GARAGEM", Color3.fromRGB(231, 76, 60), _G.TpScrollFrameGodz)
+    _G.BtnTpOrg, _G.TpOrgLabel = criarBotaoCompactoTp("BtnTpOrg", "TP ORGANIZAÇÃO", Color3.fromRGB(231, 76, 60), _G.TpScrollFrameGodz)
 
-    _G.BtnClassGcm = criarBotaoAcao("BtnClassGcm", "VIRAR GCM", Color3.fromRGB(41, 128, 185), _G.ClassScrollFrameGodz)
-    _G.BtnClassCaminhoneiro = criarBotaoAcao("BtnClassCaminhoneiro", "VIRAR CAMINHONEIRO", Color3.fromRGB(39, 174, 96), _G.ClassScrollFrameGodz)
-    _G.BtnClassCivil = criarBotaoAcao("BtnClassCivil", "VIRAR CIVIL", Color3.fromRGB(142, 68, 173), _G.ClassScrollFrameGodz)
-    _G.BtnClassLixeiro = criarBotaoAcao("BtnClassLixeiro", "VIRAR LIXEIRO", Color3.fromRGB(241, 196, 15), _G.ClassScrollFrameGodz)
-    _G.BtnClassFood = criarBotaoAcao("BtnClassFood", "VIRAR SINTONIA FOOD", Color3.fromRGB(211, 84, 0), _G.ClassScrollFrameGodz)
+    _G.BtnClassGcm, _G.ClassGcmLabel = criarBotaoCompacto("BtnClassGcm", "VIRAR GCM", Color3.fromRGB(231, 76, 60), _G.ClassScrollFrameGodz)
+    _G.BtnClassCaminhoneiro, _G.ClassCaminheiroLabel = criarBotaoCompacto("BtnClassCaminhoneiro", "VIRAR CAMINHONEIRO", Color3.fromRGB(231, 76, 60), _G.ClassScrollFrameGodz)
+    _G.BtnClassCivil, _G.ClassCivilLabel = criarBotaoCompacto("BtnClassCivil", "VIRAR CIVIL", Color3.fromRGB(231, 76, 60), _G.ClassScrollFrameGodz)
+    _G.BtnClassLixeiro, _G.ClassLixeiroLabel = criarBotaoCompacto("BtnClassLixeiro", "VIRAR LIXEIRO", Color3.fromRGB(231, 76, 60), _G.ClassScrollFrameGodz)
+    _G.BtnClassFood, _G.ClassFoodLabel = criarBotaoCompacto("BtnClassFood", "VIRAR SINTONIA FOOD", Color3.fromRGB(231, 76, 60), _G.ClassScrollFrameGodz)
 
-    criarSeparador("MAGNETIC PULL", _G.MagScrollFrameGodz)
-    _G.BtnToggleMagGodz = criarBotaoAcao("BtnToggleMag", "SISTEMA MAGNETICO: OFF", Color3.fromRGB(231, 76, 60), _G.MagScrollFrameGodz)
-    _G.BtnToggleMagFloatGodz = criarBotaoAcao("BtnToggleMagFloat", "BOTÃO FLUTUANTE PULL: OFF", Color3.fromRGB(231, 76, 60), _G.MagScrollFrameGodz)
+    criarSeparador("AIMBOT", _G.AimScrollFrameGodz)
+    _G.BtnToggleAimGodz, _G.AimbotLabel = criarBotaoCompacto("BtnToggleAim", "SISTEMA AIMBOT", Color3.fromRGB(231, 76, 60), _G.AimScrollFrameGodz)
+    _G.BtnToggleAimFloatGodz, _G.AimFloatLabel = criarBotaoCompacto("BtnToggleAimFloat", "BOTÃO FLUTUANTE AIM", Color3.fromRGB(231, 76, 60), _G.AimScrollFrameGodz)
+    
+    -- FOV ABAIXO DE AIMBOT
+    local FovContainer = Instance.new("Frame")
+    FovContainer.Name = "FovContainer"
+    FovContainer.Size = UDim2.new(1, 0, 0, 28)
+    FovContainer.BackgroundTransparency = 1
+    FovContainer.BorderSizePixel = 0
+    FovContainer.Parent = _G.AimScrollFrameGodz
 
-    _G.BtnToggleAimGodz = criarBotaoAcao("BtnToggleAim", "SISTEMA AIMBOT: OFF", Color3.fromRGB(231, 76, 60), _G.AimScrollFrameGodz)
-    _G.BtnToggleAimFloatGodz = criarBotaoAcao("BtnToggleAimFloat", "BOTÃO FLUTUANTE AIM: OFF", Color3.fromRGB(231, 76, 60), _G.AimScrollFrameGodz) 
-    _G.BtnToggleAimPartGodz = criarBotaoAcao("BtnToggleAimPart", "MIRA FOCADA: CABEÇA", Color3.fromRGB(155, 89, 182), _G.AimScrollFrameGodz) 
+    local FovLabel = Instance.new("TextLabel")
+    FovLabel.Name = "FovLabel"
+    FovLabel.Size = UDim2.new(0.30, -2, 1, 0)
+    FovLabel.Position = UDim2.new(0, 0, 0, 0)
+    FovLabel.BackgroundColor3 = Color3.fromRGB(36, 36, 42)
+    FovLabel.Text = "FOV AIMBOT"
+    FovLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    FovLabel.Font = Enum.Font.Code
+    FovLabel.TextSize = 11
+    FovLabel.BorderSizePixel = 0
+    FovLabel.Parent = FovContainer
+
+    local fovCorner = Instance.new("UICorner")
+    fovCorner.CornerRadius = UDim.new(0, 6)
+    fovCorner.Parent = FovLabel
 
     local AimFovTextBox = Instance.new("TextBox")
-    AimFovTextBox.Size = UDim2.new(1, 0, 0, 32)
+    AimFovTextBox.Size = UDim2.new(0.68, -2, 1, 0)
+    AimFovTextBox.Position = UDim2.new(0.32, 0, 0, 0)
     AimFovTextBox.BackgroundColor3 = Color3.fromRGB(36, 36, 42)
     AimFovTextBox.BorderSizePixel = 0
     AimFovTextBox.Text = "100"
-    AimFovTextBox.PlaceholderText = "Definir Área do FOV (Padrão 100)..."
+    AimFovTextBox.PlaceholderText = "Definir FOV..."
     AimFovTextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
     AimFovTextBox.TextSize = 12
     AimFovTextBox.Font = Enum.Font.Code
-    AimFovTextBox.Parent = _G.AimScrollFrameGodz
+    AimFovTextBox.Parent = FovContainer
 
     local afc = Instance.new("UICorner")
     afc.CornerRadius = UDim.new(0, 6)
     afc.Parent = AimFovTextBox
+    
+    _G.BtnToggleAimPartGodz, _G.AimPartLabel = criarBotaoCompacto("BtnToggleAimPart", "MIRA FOCADA", Color3.fromRGB(155, 89, 182), _G.AimScrollFrameGodz)
+    _G.BtnToggleAimTeamGodz, _G.AimTeamLabel = criarBotaoCompacto("BtnToggleAimTeam", "TEAM CHECK", Color3.fromRGB(231, 76, 60), _G.AimScrollFrameGodz)
+    _G.BtnToggleAimKillGodz, _G.AimKillLabel = criarBotaoCompacto("BtnToggleAimKill", "KILL CHECK", Color3.fromRGB(231, 76, 60), _G.AimScrollFrameGodz)
+    _G.BtnToggleAimWallGodz, _G.AimWallLabel = criarBotaoCompacto("BtnToggleAimWall", "WALL CHECK", Color3.fromRGB(231, 76, 60), _G.AimScrollFrameGodz)
 
-    _G.BtnToggleAimTeamGodz = criarBotaoAcao("BtnToggleAimTeam", "TEAM CHECK: OFF", Color3.fromRGB(231, 76, 60), _G.AimScrollFrameGodz)
-    _G.BtnToggleAimKillGodz = criarBotaoAcao("BtnToggleAimKill", "KILL CHECK: OFF", Color3.fromRGB(231, 76, 60), _G.AimScrollFrameGodz)
-    _G.BtnToggleAimWallGodz = criarBotaoAcao("BtnToggleAimWall", "WALL CHECK: OFF", Color3.fromRGB(231, 76, 60), _G.AimScrollFrameGodz)
+    criarSeparador("MAGNETIC PULL", _G.AimScrollFrameGodz)
+    _G.BtnToggleMagGodz, _G.MagLabel = criarBotaoCompacto("BtnToggleMag", "SISTEMA MAGNETICO", Color3.fromRGB(231, 76, 60), _G.AimScrollFrameGodz)
+    _G.BtnToggleMagFloatGodz, _G.MagFloatLabel = criarBotaoCompacto("BtnToggleMagFloat", "BOTÃO FLUTUANTE PULL", Color3.fromRGB(231, 76, 60), _G.AimScrollFrameGodz)
 
     local TpPlayerTextBox = Instance.new("TextBox")
     TpPlayerTextBox.Size = UDim2.new(1, 0, 0, 32)
@@ -532,12 +656,23 @@ task.spawn(function()
     tptc.CornerRadius = UDim.new(0, 6)
     tptc.Parent = TpPlayerTextBox
 
-    _G.BtnTpPlayerGodz = criarBotaoAcao("BtnTpPlayer", "TELEPORTAR (Freeze)", Color3.fromRGB(39, 174, 96), _G.TpPlyScrollFrameGodz)
+    _G.BtnTpPlayerGodz, _G.TpPlayerLabel = criarBotaoCompacto("BtnTpPlayer", "TELEPORTAR (Freeze)", Color3.fromRGB(39, 174, 96), _G.TpPlyScrollFrameGodz)
 
     criarSeparador("ABRIR LOCAIS", _G.OpenScrollFrameGodz)
-    _G.BtnOpenFabrica = criarBotaoAcao("BtnOpenFabrica", "ABRIR FÁBRICA DE ARMA", Color3.fromRGB(192, 57, 43), _G.OpenScrollFrameGodz)
-    _G.BtnOpenMercadoNegro = criarBotaoAcao("BtnOpenMercadoNegro", "ABRIR MERCADO NEGRO", Color3.fromRGB(44, 62, 80), _G.OpenScrollFrameGodz)
-    _G.BtnOpenMercadinho = criarBotaoAcao("BtnOpenMercadinho", "ABRIR MERCADINHO", Color3.fromRGB(39, 174, 96), _G.OpenScrollFrameGodz)
+    _G.BtnOpenFabrica, _G.OpenFabricaLabel = criarBotaoCompacto("BtnOpenFabrica", "ABRIR FÁBRICA DE ARMA", Color3.fromRGB(231, 76, 60), _G.OpenScrollFrameGodz)
+    _G.BtnOpenMercadoNegro, _G.OpenMercadoNegroLabel = criarBotaoCompacto("BtnOpenMercadoNegro", "ABRIR MERCADO NEGRO", Color3.fromRGB(231, 76, 60), _G.OpenScrollFrameGodz)
+    _G.BtnOpenMercadinho, _G.OpenMercadinhoLabel = criarBotaoCompacto("BtnOpenMercadinho", "ABRIR MERCADINHO", Color3.fromRGB(231, 76, 60), _G.OpenScrollFrameGodz)
+
+    -- ABA SYSTEM
+    criarSeparador("SYSTEM", _G.SystemScrollFrameGodz)
+    local futuramenteLabel = Instance.new("TextLabel")
+    futuramenteLabel.Size = UDim2.new(1, 0, 0, 50)
+    futuramenteLabel.BackgroundTransparency = 1
+    futuramenteLabel.Text = "FUTURAMENTE"
+    futuramenteLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    futuramenteLabel.Font = Enum.Font.Code
+    futuramenteLabel.TextSize = 18
+    futuramenteLabel.Parent = _G.SystemScrollFrameGodz
 
     _G.HubLogicaPronta = true
 
@@ -1138,7 +1273,9 @@ task.spawn(function()
         atualizarInterface()
     end)
 
-    local function alternarBotaoFlutuanteFly(ligar)
+    -- Conexão do Modo Streamer removida pois o botão foi retirado da interface visual
+
+        local function alternarBotaoFlutuanteFly(ligar)
         if ligar then
             if _G.FlyRoundBtn then pcall(function() _G.FlyRoundBtn:Destroy() end) end
             
@@ -1146,7 +1283,7 @@ task.spawn(function()
             roundBtn.Size = UDim2.new(0, 50, 0, 50)
             roundBtn.Position = UDim2.new(0.1, 0, 0.62, 0) 
             roundBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-            roundBtn.Text = "🦅"
+            roundBtn.Text = "🏃‍♂️"
             roundBtn.TextSize = 24
             roundBtn.Font = Enum.Font.Roboto 
             roundBtn.RichText = true
@@ -1191,12 +1328,11 @@ task.spawn(function()
                 if not char or not char:FindFirstChild("HumanoidRootPart") then return end
                 
                 local hrp = char.HumanoidRootPart
-                _G.FlyingStateGodz = true
-                roundBtn.Text = "🦅"
+                _G.FlyPlatformActiveGodz = true
+                roundBtn.Text = "🏃‍♂️"
                 roundBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
                 
                 if _G.FlyPlatformGodz then pcall(function() _G.FlyPlatformGodz:Destroy() end) end
-                
                 local platform = Instance.new("Part")
                 platform.Size = Vector3.new(4, 1, 4)
                 platform.Transparency = 1 
@@ -1207,7 +1343,10 @@ task.spawn(function()
                 
                 if _G.FlyConnectionGodz then pcall(function() _G.FlyConnectionGodz:Disconnect() end) end
                 _G.FlyConnectionGodz = RunService.Heartbeat:Connect(function(dt)
-                    if not _G.FlyingStateGodz or not char or not char:FindFirstChild("HumanoidRootPart") then return end
+                    if not _G.FlyPlatformActiveGodz or not char or not char.Parent or not char:FindFirstChild("HumanoidRootPart") then return end
+                    
+                    local hrp = char:FindFirstChild("HumanoidRootPart")
+                    if not hrp then return end
                     
                     platform.CFrame = hrp.CFrame * CFrame.new(0, -3.1, 0)
                     hrp.Velocity = Vector3.new(0, 0, 0)
@@ -1226,29 +1365,216 @@ task.spawn(function()
             end
             
             local function stopFly()
-                _G.FlyingStateGodz = false
+                _G.FlyPlatformActiveGodz = false
                 roundBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
                 if _G.FlyConnectionGodz then pcall(function() _G.FlyConnectionGodz:Disconnect() end) _G.FlyConnectionGodz = nil end
                 if _G.FlyPlatformGodz then pcall(function() _G.FlyPlatformGodz:Destroy() end) _G.FlyPlatformGodz = nil end
             end
             
             roundBtn.MouseButton1Click:Connect(function()
-                if _G.FlyingStateGodz then stopFly() else startFly() end
+                if _G.FlyPlatformActiveGodz then stopFly() else startFly() end
+                atualizarInterface()
             end)
             
             _G.FlyRoundBtn = roundBtn
         else
-            _G.FlyingStateGodz = false
-            if _G.FlyGlobalDrag then _G.FlyGlobalDrag:Disconnect() _G.FlyGlobalDrag = nil end
+            _G.FlyPlatformActiveGodz = false
             if _G.FlyConnectionGodz then pcall(function() _G.FlyConnectionGodz:Disconnect() end) _G.FlyConnectionGodz = nil end
             if _G.FlyPlatformGodz then pcall(function() _G.FlyPlatformGodz:Destroy() end) _G.FlyPlatformGodz = nil end
+            if _G.FlyGlobalDrag then _G.FlyGlobalDrag:Disconnect() _G.FlyGlobalDrag = nil end
             if _G.FlyRoundBtn then pcall(function() _G.FlyRoundBtn:Destroy() end) _G.FlyRoundBtn = nil end
+        end
+    end
+
+    local function alternarBotaoFlutuanteFlyAdvanced(ligar)
+        if ligar then
+            if _G.FlyAdvancedRoundBtn then pcall(function() _G.FlyAdvancedRoundBtn:Destroy() end) end
+            
+            local roundBtn = Instance.new("TextButton")
+            roundBtn.Size = UDim2.new(0, 50, 0, 50)
+            roundBtn.Position = UDim2.new(0.1, 0, 0.50, 0) 
+            roundBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+            roundBtn.Text = "🦅"
+            roundBtn.TextSize = 24
+            roundBtn.Font = Enum.Font.Roboto 
+            roundBtn.RichText = true
+            roundBtn.Active = true
+            roundBtn.Parent = screenGui
+            
+            local btnCorner = Instance.new("UICorner")
+            btnCorner.CornerRadius = UDim.new(1, 0)
+            btnCorner.Parent = roundBtn
+            
+            local btnStroke = Instance.new("UIStroke")
+            btnStroke.Color = Color3.fromRGB(231, 76, 60)
+            btnStroke.Thickness = 2
+            btnStroke.Parent = roundBtn
+            
+            local fDrag, fDragInput, fDragStart, fStartPos
+            roundBtn.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                    fDrag = true
+                    fDragStart = input.Position
+                    fStartPos = roundBtn.Position
+                    input.Changed:Connect(function()
+                        if input.UserInputState == Enum.UserInputState.End then fDrag = false end
+                    end)
+                end
+            end)
+            
+            roundBtn.InputChanged:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then fDragInput = input end
+            end)
+            
+            if _G.FlyAdvancedGlobalDrag then _G.FlyAdvancedGlobalDrag:Disconnect() end
+            _G.FlyAdvancedGlobalDrag = UserInputService.InputChanged:Connect(function(input)
+                if input == fDragInput and fDrag then
+                    local delta = input.Position - fDragStart
+                    roundBtn.Position = UDim2.new(fStartPos.X.Scale, fStartPos.X.Offset + delta.X, fStartPos.Y.Scale, fStartPos.Y.Offset + delta.Y)
+                end
+            end)
+            
+            local Players = game:GetService("Players")
+            local RunService = game:GetService("RunService")
+            local UserInputService = game:GetService("UserInputService")
+            local player = Players.LocalPlayer
+            local camera = workspace.CurrentCamera
+            local PlayerModule = require(player:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule"))
+            local Controls = PlayerModule:GetControls()
+            local FlySpeed = 58
+
+            local function startAdvancedFly()
+                local char = player.Character
+                if not char then return end
+                local root = char:FindFirstChild("HumanoidRootPart")
+                local hum = char:FindFirstChildOfClass("Humanoid")
+                if not root or not hum then return end
+
+                local oldSpeed = hum.WalkSpeed
+                local oldJump = hum.JumpPower
+                hum.WalkSpeed = 0
+                hum.JumpPower = 0
+                local animate = char:FindFirstChild("Animate")
+                if animate then animate.Disabled = true end
+                for _, track in ipairs(hum:GetPlayingAnimationTracks()) do track:Stop() end
+
+                local movingDown = false
+                local inputConnections = {}
+                inputConnections.inputBegan = UserInputService.InputBegan:Connect(function(input, gpe)
+                    if gpe then return end
+                    if input.KeyCode == Enum.KeyCode.LeftShift then movingDown = true end
+                end)
+                inputConnections.inputEnded = UserInputService.InputEnded:Connect(function(input)
+                    if input.KeyCode == Enum.KeyCode.LeftShift then movingDown = false end
+                end)
+
+                local flyLoop
+                flyLoop = RunService.Heartbeat:Connect(function(dt)
+                    if not _G.FlyAdvancedActiveGodz or not char or not char.Parent or not root or not hum then
+                        pcall(function()
+                            if hum then hum.WalkSpeed = oldSpeed or 16 hum.JumpPower = oldJump or 50 hum:ChangeState(Enum.HumanoidStateType.Landed) end
+                            if animate then animate.Disabled = false end
+                            root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                            root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                        end)
+                        pcall(function() if inputConnections.inputBegan then inputConnections.inputBegan:Disconnect() end if inputConnections.inputEnded then inputConnections.inputEnded:Disconnect() end end)
+                        if flyLoop then flyLoop:Disconnect() end
+                        return
+                    end
+                    hum:ChangeState(Enum.HumanoidStateType.Running)
+                    local moveVector = Controls:GetMoveVector()
+                    local moveDir = Vector3.new(0, 0, 0)
+                    if moveVector.Magnitude > 0 then moveDir = (camera.CFrame.RightVector * moveVector.X) + (camera.CFrame.LookVector * -moveVector.Z) end
+                    if hum.Jump or UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0, 1, 0) end
+                    if movingDown then moveDir = moveDir - Vector3.new(0, 1, 0) end
+                    if moveDir.Magnitude > 0 then root.CFrame = root.CFrame + (moveDir.Unit * FlySpeed * dt) end
+                    root.CFrame = CFrame.lookAt(root.Position, root.Position + camera.CFrame.LookVector)
+                    root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                    root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                end)
+                _G.FlyAdvancedConnectionGodz = flyLoop
+            end
+
+            roundBtn.MouseButton1Click:Connect(function()
+                _G.FlyAdvancedActiveGodz = not _G.FlyAdvancedActiveGodz
+                if _G.FlyAdvancedActiveGodz then
+                    roundBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+                    task.spawn(startAdvancedFly)
+                else
+                    roundBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+                    -- O loop do Heartbeat já cuida da restauração quando _G.FlyAdvancedActiveGodz vira false
+                    -- Mas vamos forçar aqui também para garantir
+                    pcall(function()
+                        local char = player.Character
+                        if char then
+                            local hum = char:FindFirstChildOfClass("Humanoid")
+                            if hum then
+                                hum.WalkSpeed = 16
+                                hum.JumpPower = 50
+                                hum:ChangeState(Enum.HumanoidStateType.Landed)
+                            end
+                            local animate = char:FindFirstChild("Animate")
+                            if animate then animate.Disabled = false end
+                        end
+                    end)
+                    if _G.FlyAdvancedConnectionGodz then pcall(function() _G.FlyAdvancedConnectionGodz:Disconnect() end) _G.FlyAdvancedConnectionGodz = nil end
+                end
+                atualizarInterface()
+            end)
+            
+            _G.FlyAdvancedRoundBtn = roundBtn
+        else
+            _G.FlyAdvancedActiveGodz = false
+            if _G.FlyAdvancedConnectionGodz then pcall(function() _G.FlyAdvancedConnectionGodz:Disconnect() end) _G.FlyAdvancedConnectionGodz = nil end
+            if _G.FlyAdvancedGlobalDrag then _G.FlyAdvancedGlobalDrag:Disconnect() _G.FlyAdvancedGlobalDrag = nil end
+            if _G.FlyAdvancedRoundBtn then pcall(function() _G.FlyAdvancedRoundBtn:Destroy() end) _G.FlyAdvancedRoundBtn = nil end
         end
     end
 
     _G.BtnToggleFlyGodz.MouseButton1Click:Connect(function()
         _G.FlyActiveGodz = not _G.FlyActiveGodz
-        alternarBotaoFlutuanteFly(_G.FlyActiveGodz)
+        
+        if _G.FlyActiveGodz then
+            _G.StatusLabelGodz.Text = "FLY PLATAFORM: ATIVADO"
+            _G.StatusLabelGodz.TextColor3 = Color3.fromRGB(46, 204, 113)
+            alternarBotaoFlutuanteFly(true)
+        else
+            _G.StatusLabelGodz.Text = "FLY PLATAFORM: DESATIVADO"
+            _G.StatusLabelGodz.TextColor3 = Color3.fromRGB(231, 76, 60)
+            alternarBotaoFlutuanteFly(false)
+        end
+        atualizarInterface()
+    end)
+
+    _G.BtnToggleFlyAdvancedGodz.MouseButton1Click:Connect(function()
+        _G.FlyAdvancedBtnActiveGodz = not _G.FlyAdvancedBtnActiveGodz
+        
+        if _G.FlyAdvancedBtnActiveGodz then
+            _G.StatusLabelGodz.Text = "FLY AVANÇADO: BOTÃO ATIVADO"
+            _G.StatusLabelGodz.TextColor3 = Color3.fromRGB(46, 204, 113)
+            alternarBotaoFlutuanteFlyAdvanced(true)
+        else
+            _G.StatusLabelGodz.Text = "FLY AVANÇADO: BOTÃO DESATIVADO"
+            _G.StatusLabelGodz.TextColor3 = Color3.fromRGB(231, 76, 60)
+            
+            -- Forçar restauração do movimento ao remover o botão
+            _G.FlyAdvancedActiveGodz = false
+            pcall(function()
+                local char = player.Character
+                if char then
+                    local hum = char:FindFirstChildOfClass("Humanoid")
+                    if hum then
+                        hum.WalkSpeed = 16
+                        hum.JumpPower = 50
+                        hum:ChangeState(Enum.HumanoidStateType.Landed)
+                    end
+                    local animate = char:FindFirstChild("Animate")
+                    if animate then animate.Disabled = false end
+                end
+            end)
+            
+            alternarBotaoFlutuanteFlyAdvanced(false)
+        end
         atualizarInterface()
     end)
 
@@ -1432,8 +1758,8 @@ task.spawn(function()
                 local myRoot = char.HumanoidRootPart
                 local targetRoot = targetPlayer.Character.HumanoidRootPart
                 
-                _G.BtnTpPlayerGodz.Text = "TELEPORTANDO..."
-                _G.BtnTpPlayerGodz.BackgroundColor3 = Color3.fromRGB(230, 126, 34)
+                _G.StatusLabelGodz.Text = "Teleportando..."
+                _G.StatusLabelGodz.TextColor3 = Color3.fromRGB(230, 126, 34)
                 
                 task.spawn(function()
                     myRoot.Anchored = true
@@ -1445,18 +1771,13 @@ task.spawn(function()
                     end
                     
                     myRoot.Anchored = false
-                    _G.BtnTpPlayerGodz.Text = "TELEPORTAR (Freeze)"
-                    _G.BtnTpPlayerGodz.BackgroundColor3 = Color3.fromRGB(39, 174, 96)
                     _G.StatusLabelGodz.Text = "Teleporte concluído!"
                     _G.StatusLabelGodz.TextColor3 = Color3.fromRGB(46, 204, 113)
                 end)
             end
         else
-            _G.BtnTpPlayerGodz.Text = "JOGADOR NÃO ENCONTRADO"
-            _G.BtnTpPlayerGodz.BackgroundColor3 = Color3.fromRGB(231, 76, 60)
-            task.wait(1.5)
-            _G.BtnTpPlayerGodz.Text = "TELEPORTAR (Freeze)"
-            _G.BtnTpPlayerGodz.BackgroundColor3 = Color3.fromRGB(39, 174, 96)
+            _G.StatusLabelGodz.Text = "Jogador não encontrado!"
+            _G.StatusLabelGodz.TextColor3 = Color3.fromRGB(231, 76, 60)
         end
     end)
 
@@ -1520,19 +1841,35 @@ task.spawn(function()
     end
 
     local function gerenciarCarESP()
-        local pastaCarros = Workspace:FindFirstChild("CarrosSpawnados")
-        if not pastaCarros then return end
-
         if _G.EspCarTrack then
-            for _, carro in ipairs(pastaCarros:GetChildren()) do
-                criarESPCarro(carro)
+            -- Função para verificar se um objeto é um carro
+            local function isCarro(obj)
+                if obj:IsA("Model") and (obj:FindFirstChild("DriveSeat") or obj:FindFirstChild("VehicleSeat")) then
+                    return true
+                end
+                return false
             end
-            carAddedConnection = pastaCarros.ChildAdded:Connect(function(carro)
-                task.wait(0.5)
-                criarESPCarro(carro)
+
+            -- Rastrear carros existentes em todo o Workspace
+            for _, obj in ipairs(Workspace:GetDescendants()) do
+                if isCarro(obj) then
+                    criarESPCarro(obj)
+                end
+            end
+
+            -- Conexão para novos carros
+            if carAddedConnection then carAddedConnection:Disconnect() end
+            carAddedConnection = Workspace.DescendantAdded:Connect(function(obj)
+                task.wait(1) -- Esperar carregar componentes
+                if isCarro(obj) then
+                    criarESPCarro(obj)
+                end
             end)
-            carRemovedConnection = pastaCarros.ChildRemoved:Connect(function(carro)
-                limparESPCarro(carro)
+
+            -- Conexão para remoção
+            if carRemovedConnection then carRemovedConnection:Disconnect() end
+            carRemovedConnection = Workspace.DescendantRemoving:Connect(function(obj)
+                limparESPCarro(obj)
             end)
         else
             if carAddedConnection then carAddedConnection:Disconnect(); carAddedConnection = nil end
@@ -1543,16 +1880,123 @@ task.spawn(function()
         end
     end
 
+    local espObjectsMoney = {}
+    local renderConnectionsMoney = {}
+    local moneyAddedConnection, moneyRemovedConnection
+
+    local function limparESPMoney(obj)
+        if espObjectsMoney[obj] then
+            pcall(function() espObjectsMoney[obj]:Destroy() end)
+            espObjectsMoney[obj] = nil
+        end
+        if renderConnectionsMoney[obj] then
+            pcall(function() renderConnectionsMoney[obj]:Disconnect() end)
+            renderConnectionsMoney[obj] = nil
+        end
+    end
+
+    local function criarESPMoney(obj)
+        if not _G.EspMoneyTrack then return end
+        if espObjectsMoney[obj] then return end
+
+        local billboard = Instance.new("BillboardGui")
+        billboard.Name = "MoneyESP_" .. obj.Name
+        billboard.Adornee = obj
+        billboard.Size = UDim2.new(0, 200, 0, 60)
+        billboard.StudsOffset = Vector3.new(0, 2, 0)
+        billboard.AlwaysOnTop = true
+
+        local container = Instance.new("Frame")
+        container.Size = UDim2.new(1, 0, 1, 0)
+        container.BackgroundTransparency = 1
+        container.Parent = billboard
+
+        local layout = Instance.new("UIListLayout")
+        layout.FillDirection = Enum.FillDirection.Vertical
+        layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+        layout.VerticalAlignment = Enum.VerticalAlignment.Center
+        layout.Parent = container
+
+        local function criarLabel(texto, tamanho, cor)
+            local label = Instance.new("TextLabel")
+            label.BackgroundTransparency = 1
+            label.Size = UDim2.new(1, 0, 0, 15)
+            label.Text = texto
+            label.TextColor3 = cor
+            label.TextStrokeTransparency = 0
+            label.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+            label.TextSize = tamanho
+            label.Font = Enum.Font.Code
+            label.Parent = container
+            return label
+        end
+
+        local nomeLabel = criarLabel("Maleta de Dinheiro", 13, Color3.fromRGB(160, 32, 240))
+        local localLabel = criarLabel("", 11, Color3.fromRGB(200, 200, 200))
+        local distLabel = criarLabel("", 10, Color3.fromRGB(255, 255, 255))
+
+        local localName = "[ DESCONHECIDO ]"
+        if obj:IsDescendantOf(Workspace:FindFirstChild("Cassino")) then
+            localName = "[ CASSINO ]"
+        elseif obj:IsDescendantOf(Workspace:FindFirstChild("Banco")) then
+            localName = "[ BANCO ]"
+        end
+        localLabel.Text = localName
+
+        pcall(function() billboard.Parent = EspContainer end)
+        espObjectsMoney[obj] = billboard
+
+        renderConnectionsMoney[obj] = RunService.RenderStepped:Connect(function()
+            if not obj or not obj.Parent or not _G.EspMoneyTrack then
+                limparESPMoney(obj)
+                return
+            end
+            
+            local myChar = player.Character
+            if myChar and myChar:FindFirstChild("HumanoidRootPart") then
+                local distance = math.floor((myChar.HumanoidRootPart.Position - obj.Position).Magnitude)
+                distLabel.Text = string.format("{ %d studs }", distance)
+            end
+        end)
+    end
+
+    local function gerenciarMoneyESP()
+        if _G.EspMoneyTrack then
+            local function isMoney(obj)
+                return obj.Name == "duffelbagmeshzinha" and (obj:IsDescendantOf(Workspace:FindFirstChild("Cassino")) or obj:IsDescendantOf(Workspace:FindFirstChild("Banco")))
+            end
+
+            for _, obj in ipairs(Workspace:GetDescendants()) do
+                if isMoney(obj) then criarESPMoney(obj) end
+            end
+
+            if moneyAddedConnection then moneyAddedConnection:Disconnect() end
+            moneyAddedConnection = Workspace.DescendantAdded:Connect(function(obj)
+                task.wait(0.5)
+                if isMoney(obj) then criarESPMoney(obj) end
+            end)
+
+            if moneyRemovedConnection then moneyRemovedConnection:Disconnect() end
+            moneyRemovedConnection = Workspace.DescendantRemoving:Connect(function(obj)
+                limparESPMoney(obj)
+            end)
+        else
+            if moneyAddedConnection then moneyAddedConnection:Disconnect(); moneyAddedConnection = nil end
+            if moneyRemovedConnection then moneyRemovedConnection:Disconnect(); moneyRemovedConnection = nil end
+            for obj, _ in pairs(espObjectsMoney) do limparESPMoney(obj) end
+        end
+    end
+
     resetarCoresAbas = function()
         local c = Color3.fromRGB(36, 36, 42) local tc = Color3.fromRGB(160, 160, 170)
         _G.BtnAba1Godz.BackgroundColor3 = c; _G.BtnAba1Godz.TextColor3 = tc
         _G.BtnAba2Godz.BackgroundColor3 = c; _G.BtnAba2Godz.TextColor3 = tc
         _G.BtnAba3Godz.BackgroundColor3 = c; _G.BtnAba3Godz.TextColor3 = tc
         _G.BtnAba4Godz.BackgroundColor3 = c; _G.BtnAba4Godz.TextColor3 = tc
-        _G.BtnAba5Godz.BackgroundColor3 = c; _G.BtnAba5Godz.TextColor3 = tc
         _G.BtnAba6Godz.BackgroundColor3 = c; _G.BtnAba6Godz.TextColor3 = tc
         _G.BtnAba7Godz.BackgroundColor3 = c; _G.BtnAba7Godz.TextColor3 = tc
         _G.BtnAba8Godz.BackgroundColor3 = c; _G.BtnAba8Godz.TextColor3 = tc
+        _G.BtnAba9Godz.BackgroundColor3 = c; _G.BtnAba9Godz.TextColor3 = tc
     end
 
     atualizarInterface = function()
@@ -1562,55 +2006,104 @@ task.spawn(function()
         _G.EspScrollFrameGodz.Visible = false
         _G.TpScrollFrameGodz.Visible = false
         _G.ClassScrollFrameGodz.Visible = false
-        _G.MagScrollFrameGodz.Visible = false
         _G.AimScrollFrameGodz.Visible = false
         _G.TpPlyScrollFrameGodz.Visible = false
         _G.OpenScrollFrameGodz.Visible = false
+        _G.SystemScrollFrameGodz.Visible = false
         
         _G.BtnToggleESPGodz.BackgroundColor3 = _G.SecureRenderLoop and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
-        _G.BtnToggleESPGodz.Text = _G.SecureRenderLoop and "LIGAR ESP MASTER: ATIVADO" or "LIGAR ESP MASTER: DESATIVADO"
+        _G.BtnToggleESPGodz.Text = _G.SecureRenderLoop and "DESLIGAR" or "LIGAR"
+        _G.ESPLabel.Text = _G.SecureRenderLoop and "LIGAR ESP ✓" or "LIGAR ESP"
         
         _G.BtnToggleBoxGodz.BackgroundColor3 = _G.EspBoxTrack and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
-        _G.BtnToggleBoxGodz.Text = _G.EspBoxTrack and "ESP QUADRO 2D: ATIVADO" or "ESP QUADRO 2D: DESATIVADO"
+        _G.BtnToggleBoxGodz.Text = _G.EspBoxTrack and "DESLIGAR" or "LIGAR"
+        _G.BoxLabel.Text = _G.EspBoxTrack and "ESP QUADRO 2D ✓" or "ESP QUADRO 2D"
         
         _G.BtnToggleSkeletonGodz.BackgroundColor3 = _G.EspSkeletonTrack and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
-        _G.BtnToggleSkeletonGodz.Text = _G.EspSkeletonTrack and "ESP SKELETO + HEAD: ATIVADO" or "ESP SKELETO + HEAD: DESATIVADO"
+        _G.BtnToggleSkeletonGodz.Text = _G.EspSkeletonTrack and "DESLIGAR" or "LIGAR"
+        _G.SkeletonLabel.Text = _G.EspSkeletonTrack and "ESP SKELETO + HEAD ✓" or "ESP SKELETO + HEAD"
         
         _G.BtnToggleNameGodz.BackgroundColor3 = _G.EspNameTrack and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
-        _G.BtnToggleNameGodz.Text = _G.EspNameTrack and "ESP NOME DO PLAYER: ATIVADO" or "ESP NOME DO PLAYER: DESATIVADO"
+        _G.BtnToggleNameGodz.Text = _G.EspNameTrack and "DESLIGAR" or "LIGAR"
+        _G.NameLabel.Text = _G.EspNameTrack and "ESP NOME DO PLAYER ✓" or "ESP NOME DO PLAYER"
         
         _G.BtnToggleHealthGodz.BackgroundColor3 = _G.EspHealthTrack and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
-        _G.BtnToggleHealthGodz.Text = _G.EspHealthTrack and "ESP BARRA DE VIDA: ATIVADO" or "ESP BARRA DE VIDA: DESATIVADO"
+        _G.BtnToggleHealthGodz.Text = _G.EspHealthTrack and "DESLIGAR" or "LIGAR"
+        _G.HealthLabel.Text = _G.EspHealthTrack and "ESP BARRA DE VIDA ✓" or "ESP BARRA DE VIDA"
         
         _G.BtnToggleCarGodz.BackgroundColor3 = _G.EspCarTrack and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
-        _G.BtnToggleCarGodz.Text = _G.EspCarTrack and "ESP CARROS: ATIVADO" or "ESP CARROS: DESATIVADO"
+        _G.BtnToggleCarGodz.Text = _G.EspCarTrack and "DESLIGAR" or "LIGAR"
+        _G.CarLabel.Text = _G.EspCarTrack and "ESP CARROS ✓" or "ESP CARROS"
+
+        _G.BtnToggleMoneyGodz.BackgroundColor3 = _G.EspMoneyTrack and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
+        _G.BtnToggleMoneyGodz.Text = _G.EspMoneyTrack and "DESLIGAR" or "LIGAR"
+        _G.MoneyLabel.Text = _G.EspMoneyTrack and "ESP DINHEIRO ✓" or "ESP DINHEIRO"
 
         _G.BtnToggleMagGodz.BackgroundColor3 = _G.MagActiveGodz and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
-        _G.BtnToggleMagGodz.Text = _G.MagActiveGodz and "SISTEMA MAGNETICO: ON" or "SISTEMA MAGNETICO: OFF"
+        _G.BtnToggleMagGodz.Text = _G.MagActiveGodz and "DESLIGAR" or "LIGAR"
+        _G.MagLabel.Text = _G.MagActiveGodz and "SISTEMA MAGNETICO ✓" or "SISTEMA MAGNETICO"
 
         _G.BtnToggleMagFloatGodz.BackgroundColor3 = _G.MagFloatActive and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
-        _G.BtnToggleMagFloatGodz.Text = _G.MagFloatActive and "BOTÃO FLUTUANTE PULL: ON" or "BOTÃO FLUTUANTE PULL: OFF"
+        _G.BtnToggleMagFloatGodz.Text = _G.MagFloatActive and "DESLIGAR" or "LIGAR"
+        _G.MagFloatLabel.Text = _G.MagFloatActive and "BOTÃO FLUTUANTE PULL ✓" or "BOTÃO FLUTUANTE PULL"
         
         _G.BtnToggleAimGodz.BackgroundColor3 = _G.AimbotActiveGodz and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
-        _G.BtnToggleAimGodz.Text = _G.AimbotActiveGodz and "SISTEMA AIMBOT: ON" or "SISTEMA AIMBOT: OFF"
+        _G.BtnToggleAimGodz.Text = _G.AimbotActiveGodz and "DESLIGAR" or "LIGAR"
+        _G.AimbotLabel.Text = _G.AimbotActiveGodz and "SISTEMA AIMBOT ✓" or "SISTEMA AIMBOT"
 
-        _G.BtnToggleAimPartGodz.Text = _G.AimTargetPart == "Head" and "MIRA FOCADA: CABEÇA" or "MIRA FOCADA: TORSO"
+        _G.BtnToggleAimFloatGodz.BackgroundColor3 = _G.AimFloatActive and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
+        _G.BtnToggleAimFloatGodz.Text = _G.AimFloatActive and "DESLIGAR" or "LIGAR"
+        _G.AimFloatLabel.Text = _G.AimFloatActive and "BOTÃO FLUTUANTE AIM ✓" or "BOTÃO FLUTUANTE AIM"
+
+        _G.BtnToggleAimPartGodz.Text = _G.AimTargetPart == "Head" and "CABEÇA" or "TORSO"
         _G.BtnToggleAimPartGodz.BackgroundColor3 = _G.AimTargetPart == "Head" and Color3.fromRGB(155, 89, 182) or Color3.fromRGB(230, 126, 34)
         
         _G.BtnToggleAimTeamGodz.BackgroundColor3 = _G.AimTeamCheck and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
-        _G.BtnToggleAimTeamGodz.Text = _G.AimTeamCheck and "TEAM CHECK: ON" or "TEAM CHECK: OFF"
+        _G.BtnToggleAimTeamGodz.Text = _G.AimTeamCheck and "DESLIGAR" or "LIGAR"
+        _G.AimTeamLabel.Text = _G.AimTeamCheck and "TEAM CHECK ✓" or "TEAM CHECK"
         
         _G.BtnToggleAimKillGodz.BackgroundColor3 = _G.AimKillCheck and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
-        _G.BtnToggleAimKillGodz.Text = _G.AimKillCheck and "KILL CHECK: ON" or "KILL CHECK: OFF"
+        _G.BtnToggleAimKillGodz.Text = _G.AimKillCheck and "DESLIGAR" or "LIGAR"
+        _G.AimKillLabel.Text = _G.AimKillCheck and "KILL CHECK ✓" or "KILL CHECK"
         
         _G.BtnToggleAimWallGodz.BackgroundColor3 = _G.AimWallCheck and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
-        _G.BtnToggleAimWallGodz.Text = _G.AimWallCheck and "WALL CHECK: ON" or "WALL CHECK: OFF"
+        _G.BtnToggleAimWallGodz.Text = _G.AimWallCheck and "DESLIGAR" or "LIGAR"
+        _G.AimWallLabel.Text = _G.AimWallCheck and "WALL CHECK ✓" or "WALL CHECK"
         
         _G.BtnToggleFlyGodz.BackgroundColor3 = _G.FlyActiveGodz and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
-        _G.BtnToggleFlyGodz.Text = _G.FlyActiveGodz and "BOTÃO FLUTUANTE FLY: ON" or "BOTÃO FLUTUANTE FLY: OFF"
+        _G.BtnToggleFlyGodz.Text = _G.FlyActiveGodz and "BOTÃO ON" or "BOTÃO OFF"
+        _G.FlyLabel.Text = _G.FlyActiveGodz and "FLY PLATAFORM ✓" or "FLY PLATAFORM"
+        
+        if _G.FlyRoundBtn then
+            _G.FlyRoundBtn.BackgroundColor3 = _G.FlyPlatformActiveGodz and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(35, 35, 35)
+        end
+
+        _G.BtnToggleFlyAdvancedGodz.BackgroundColor3 = _G.FlyAdvancedBtnActiveGodz and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
+        _G.BtnToggleFlyAdvancedGodz.Text = _G.FlyAdvancedBtnActiveGodz and "BOTÃO ON" or "BOTÃO OFF"
+        _G.FlyAdvancedLabel.Text = _G.FlyAdvancedBtnActiveGodz and "FLY AVANÇADO ✓" or "FLY AVANÇADO"
+        
+        if _G.FlyAdvancedRoundBtn then
+            _G.FlyAdvancedRoundBtn.BackgroundColor3 = _G.FlyAdvancedActiveGodz and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(35, 35, 35)
+        end
 
         _G.BtnToggleNoclipGodz.BackgroundColor3 = _G.NoclipActiveGodz and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
-        _G.BtnToggleNoclipGodz.Text = _G.NoclipActiveGodz and "BOTÃO FLUTUANTE NOCLIP: ON" or "BOTÃO FLUTUANTE NOCLIP: OFF"
+        _G.BtnToggleNoclipGodz.Text = _G.NoclipActiveGodz and "DESLIGAR" or "LIGAR"
+        _G.NoclipLabel.Text = _G.NoclipActiveGodz and "BOTÃO FLUTUANTE NOCLIP ✓" or "BOTÃO FLUTUANTE NOCLIP"
+        
+        -- Atualizar botões de TP e Open
+        _G.BtnTpPlayerGodz.Text = "TP"
+        _G.BtnOpenFabrica.Text = "OPEN"
+        _G.BtnOpenMercadoNegro.Text = "OPEN"
+        _G.BtnOpenMercadinho.Text = "OPEN"
+        
+        -- Atualizar botões de Classe
+        _G.BtnClassGcm.Text = "SET"
+        _G.BtnClassCaminhoneiro.Text = "SET"
+        _G.BtnClassCivil.Text = "SET"
+        _G.BtnClassLixeiro.Text = "SET"
+        _G.BtnClassFood.Text = "SET"
+        
+        -- Modo Streamer removido da interface visual
         
         if paginaAtual == 1 then
             _G.BtnAba1Godz.BackgroundColor3 = Color3.fromRGB(231, 76, 60); _G.BtnAba1Godz.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -1633,25 +2126,25 @@ task.spawn(function()
             _G.StatusLabelGodz.Text = "Selecione uma Profissão"
             _G.StatusLabelGodz.TextColor3 = Color3.fromRGB(255, 255, 255)
         elseif paginaAtual == 5 then
-            _G.BtnAba5Godz.BackgroundColor3 = Color3.fromRGB(231, 76, 60); _G.BtnAba5Godz.TextColor3 = Color3.fromRGB(255, 255, 255)
-            _G.MagScrollFrameGodz.Visible = true
-            _G.StatusLabelGodz.Text = _G.MagActiveGodz and "Puxador Magnético: ON" or "Aba Magnetic Pull"
-            _G.StatusLabelGodz.TextColor3 = _G.MagActiveGodz and Color3.fromRGB(140, 0, 210) or Color3.fromRGB(255, 255, 255)
-        elseif paginaAtual == 6 then
             _G.BtnAba6Godz.BackgroundColor3 = Color3.fromRGB(231, 76, 60); _G.BtnAba6Godz.TextColor3 = Color3.fromRGB(255, 255, 255)
             _G.AimScrollFrameGodz.Visible = true
             _G.StatusLabelGodz.Text = _G.AimbotActiveGodz and "Aimbot Ativo: Travando Alvos" or "Configurações de Auxílio de Mira"
             _G.StatusLabelGodz.TextColor3 = _G.AimbotActiveGodz and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(255, 255, 255)
-        elseif paginaAtual == 7 then
+        elseif paginaAtual == 6 then
             _G.BtnAba7Godz.BackgroundColor3 = Color3.fromRGB(231, 76, 60); _G.BtnAba7Godz.TextColor3 = Color3.fromRGB(255, 255, 255)
             _G.TpPlyScrollFrameGodz.Visible = true
             _G.StatusLabelGodz.Text = "Teleporte até Jogadores"
             _G.StatusLabelGodz.TextColor3 = Color3.fromRGB(255, 255, 255)
-        elseif paginaAtual == 8 then
+        elseif paginaAtual == 7 then
             _G.BtnAba8Godz.BackgroundColor3 = Color3.fromRGB(231, 76, 60); _G.BtnAba8Godz.TextColor3 = Color3.fromRGB(255, 255, 255)
             _G.OpenScrollFrameGodz.Visible = true
             _G.StatusLabelGodz.Text = "Abrir Locais do Server"
             _G.StatusLabelGodz.TextColor3 = Color3.fromRGB(255, 255, 255)
+        elseif paginaAtual == 8 then
+            _G.BtnAba9Godz.BackgroundColor3 = Color3.fromRGB(231, 76, 60); _G.BtnAba9Godz.TextColor3 = Color3.fromRGB(255, 255, 255)
+            _G.SystemScrollFrameGodz.Visible = true
+            _G.StatusLabelGodz.Text = _G.StreamerModeActiveGodz and "Modo Streamer: ATIVADO" or "Configurações do Sistema"
+            _G.StatusLabelGodz.TextColor3 = _G.StreamerModeActiveGodz and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(255, 255, 255)
         end
         
         if _G.AimbotActiveGodz then fovCircle.Visible = true else fovCircle.Visible = false end
@@ -1661,10 +2154,10 @@ task.spawn(function()
     _G.BtnAba2Godz.MouseButton1Click:Connect(function() paginaAtual = 2 atualizarInterface() end)
     _G.BtnAba3Godz.MouseButton1Click:Connect(function() paginaAtual = 3 atualizarInterface() end)
     _G.BtnAba4Godz.MouseButton1Click:Connect(function() paginaAtual = 4 atualizarInterface() end)
-    _G.BtnAba5Godz.MouseButton1Click:Connect(function() paginaAtual = 5 atualizarInterface() end)
-    _G.BtnAba6Godz.MouseButton1Click:Connect(function() paginaAtual = 6 atualizarInterface() end)
-    _G.BtnAba7Godz.MouseButton1Click:Connect(function() paginaAtual = 7 atualizarInterface() end)
-    _G.BtnAba8Godz.MouseButton1Click:Connect(function() paginaAtual = 8 atualizarInterface() end)
+    _G.BtnAba6Godz.MouseButton1Click:Connect(function() paginaAtual = 5 atualizarInterface() end)
+    _G.BtnAba7Godz.MouseButton1Click:Connect(function() paginaAtual = 6 atualizarInterface() end)
+    _G.BtnAba8Godz.MouseButton1Click:Connect(function() paginaAtual = 7 atualizarInterface() end)
+    _G.BtnAba9Godz.MouseButton1Click:Connect(function() paginaAtual = 8 atualizarInterface() end)
 
     SpeedTextBox.FocusLost:Connect(function()
         local val = tonumber(SpeedTextBox.Text)
@@ -1675,7 +2168,8 @@ task.spawn(function()
     _G.BtnToggleSpeedGodz.MouseButton1Click:Connect(function()
         _G.SecureSpeedLoop = not _G.SecureSpeedLoop
         _G.BtnToggleSpeedGodz.BackgroundColor3 = _G.SecureSpeedLoop and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
-        _G.BtnToggleSpeedGodz.Text = _G.SecureSpeedLoop and "SPEED AMORTECIDO: ATIVADO" or "SPEED AMORTECIDO: DESATIVADO"
+        _G.BtnToggleSpeedGodz.Text = _G.SecureSpeedLoop and "DESLIGAR" or "LIGAR"
+        _G.SpeedLabel.Text = _G.SecureSpeedLoop and "SPEED BYPESS ✓" or "SPEED BYPESS"
         atualizarInterface()
     end)
 
@@ -1698,6 +2192,12 @@ task.spawn(function()
         _G.EspCarTrack = not _G.EspCarTrack
         atualizarInterface()
         gerenciarCarESP()
+    end)
+
+    _G.BtnToggleMoneyGodz.MouseButton1Click:Connect(function()
+        _G.EspMoneyTrack = not _G.EspMoneyTrack
+        atualizarInterface()
+        gerenciarMoneyESP()
     end)
 
     -- ADICIONADO: Nova função "ocultar" posicionada conforme solicitado
@@ -1737,6 +2237,17 @@ task.spawn(function()
         end)
     end)
 
+    _G.BtnTpOrg.MouseButton1Click:Connect(function()
+        pcall(function()
+            local Event = ReplicatedStorage:FindFirstChild("InGameRemotes") and ReplicatedStorage.InGameRemotes:FindFirstChild("SpawnaTeleporte")
+            if Event and Event:IsA("RemoteEvent") then
+                Event:FireServer("Org")
+                _G.StatusLabelGodz.Text = "Teleporte Enviado: Organização!"
+                _G.StatusLabelGodz.TextColor3 = Color3.fromRGB(46, 204, 113)
+            end
+        end)
+    end)
+
     local function dispararTrocaClasse(cargo, id)
         pcall(function()
             local remote = ReplicatedStorage:FindFirstChild("Mercadinho") and ReplicatedStorage.Mercadinho:FindFirstChild("PrefRemote")
@@ -1768,7 +2279,7 @@ task.spawn(function()
     local SpeedConnectionName = getRandomName()
     _G[SpeedConnectionName] = RunService.RenderStepped:Connect(function(deltaTime)
         if not screenGui or not screenGui.Parent then
-            _G.SecureSpeedLoop = false; _G.SecureRenderLoop = false; _G.AimbotActiveGodz = false; _G.FlyingStateGodz = false
+            _G.SecureSpeedLoop = false; _G.SecureRenderLoop = false; _G.AimbotActiveGodz = false; _G.FlyAdvancedActiveGodz = false; _G.FlyPlatformActiveGodz = false
             _G.EspCarTrack = false 
             _G.MagActiveGodz = false
             _G.MagFloatActive = false
@@ -1776,10 +2287,27 @@ task.spawn(function()
             pcall(function() RunService:UnbindFromRenderStep("AimbotMobileLock") end)
             if _G.NoclipRoundBtn then pcall(function() _G.NoclipRoundBtn:Destroy() end) end
             if _G.FlyRoundBtn then pcall(function() _G.FlyRoundBtn:Destroy() end) end
+            if _G.FlyAdvancedRoundBtn then pcall(function() _G.FlyAdvancedRoundBtn:Destroy() end) end
             if _G.AimRoundBtn then pcall(function() _G.AimRoundBtn:Destroy() end) end
             if _G.MagRoundBtn then pcall(function() _G.MagRoundBtn:Destroy() end) end
             
             if _G.FlyConnectionGodz then pcall(function() _G.FlyConnectionGodz:Disconnect() end) end
+            if _G.FlyAdvancedConnectionGodz then 
+                pcall(function() _G.FlyAdvancedConnectionGodz:Disconnect() end)
+                -- Restaurar estado ao destruir
+                pcall(function()
+                    local char = player.Character
+                    if char then
+                        local hum = char:FindFirstChildOfClass("Humanoid")
+                        if hum then
+                            hum.WalkSpeed = 16
+                            hum.JumpPower = 50
+                        end
+                        local animate = char:FindFirstChild("Animate")
+                        if animate then animate.Disabled = false end
+                    end
+                end)
+            end
             if _G.FlyPlatformGodz then pcall(function() _G.FlyPlatformGodz:Destroy() end) end
             if fovCircle then pcall(function() fovCircle:Destroy() end) end
             if aimTracer then pcall(function() aimTracer:Destroy() end) end
