@@ -1882,7 +1882,44 @@ task.spawn(function()
 
     local espObjectsMoney = {}
     local renderConnectionsMoney = {}
+    local transparencyConnections = {} -- Conecta GetPropertyChangedSignal de Transparency
     local moneyAddedConnection, moneyRemovedConnection
+    local moneyRescanThread = nil -- Thread do loop de rescan periódico
+
+    -- Caminhos corretos:
+    -- Banco.Malotes.[cada item].duffelbagmeshzinha
+    -- Cassino.Malotes.[cada item].duffelbagmeshzinha
+    local function getMoneyBags()
+        local bags = {}
+        
+        -- Banco.Malotes.[cada item].duffelbagmeshzinha
+        local bancoMalotes = Workspace:FindFirstChild("Banco") and Workspace.Banco:FindFirstChild("Malotes")
+        if bancoMalotes then
+            for _, item in ipairs(bancoMalotes:GetChildren()) do
+                local bag = item:FindFirstChild("duffelbagmeshzinha")
+                if bag and bag:IsA("BasePart") then
+                    table.insert(bags, { part = bag, location = "BANCO" })
+                end
+            end
+        end
+        
+        -- Cassino.Malotes.[cada item].duffelbagmeshzinha
+        local cassinoMalotes = Workspace:FindFirstChild("Cassino") and Workspace.Cassino:FindFirstChild("Malotes")
+        if cassinoMalotes then
+            for _, item in ipairs(cassinoMalotes:GetChildren()) do
+                local bag = item:FindFirstChild("duffelbagmeshzinha")
+                if bag and bag:IsA("BasePart") then
+                    table.insert(bags, { part = bag, location = "CASSINO" })
+                end
+            end
+        end
+        
+        return bags
+    end
+
+    local function isMoneyVisible(bag)
+        return bag and bag.Transparency == 0
+    end
 
     local function limparESPMoney(obj)
         if espObjectsMoney[obj] then
@@ -1893,15 +1930,22 @@ task.spawn(function()
             pcall(function() renderConnectionsMoney[obj]:Disconnect() end)
             renderConnectionsMoney[obj] = nil
         end
+        if transparencyConnections[obj] then
+            pcall(function() transparencyConnections[obj]:Disconnect() end)
+            transparencyConnections[obj] = nil
+        end
     end
 
-    local function criarESPMoney(obj)
+    local function criarESPMoney(bag, locationName)
         if not _G.EspMoneyTrack then return end
-        if espObjectsMoney[obj] then return end
+        if espObjectsMoney[bag] then return end
+
+        -- Se a bolsa tem Transparency = 1 (invisível), não criar ESP
+        if not isMoneyVisible(bag) then return end
 
         local billboard = Instance.new("BillboardGui")
-        billboard.Name = "MoneyESP_" .. obj.Name
-        billboard.Adornee = obj
+        billboard.Name = "MoneyESP_" .. bag.Name
+        billboard.Adornee = bag
         billboard.Size = UDim2.new(0, 200, 0, 60)
         billboard.StudsOffset = Vector3.new(0, 2, 0)
         billboard.AlwaysOnTop = true
@@ -1932,58 +1976,199 @@ task.spawn(function()
         end
 
         local nomeLabel = criarLabel("Maleta de Dinheiro", 13, Color3.fromRGB(160, 32, 240))
-        local localLabel = criarLabel("", 11, Color3.fromRGB(200, 200, 200))
+        local localLabel = criarLabel("[ " .. (locationName or "DESCONHECIDO") .. " ]", 11, Color3.fromRGB(200, 200, 200))
         local distLabel = criarLabel("", 10, Color3.fromRGB(255, 255, 255))
 
-        local localName = "[ DESCONHECIDO ]"
-        if obj:IsDescendantOf(Workspace:FindFirstChild("Cassino")) then
-            localName = "[ CASSINO ]"
-        elseif obj:IsDescendantOf(Workspace:FindFirstChild("Banco")) then
-            localName = "[ BANCO ]"
-        end
-        localLabel.Text = localName
-
         pcall(function() billboard.Parent = EspContainer end)
-        espObjectsMoney[obj] = billboard
+        espObjectsMoney[bag] = billboard
 
-        renderConnectionsMoney[obj] = RunService.RenderStepped:Connect(function()
-            if not obj or not obj.Parent or not _G.EspMoneyTrack then
-                limparESPMoney(obj)
+        renderConnectionsMoney[bag] = RunService.RenderStepped:Connect(function()
+            if not bag or not bag.Parent or not _G.EspMoneyTrack then
+                limparESPMoney(bag)
+                return
+            end
+            
+            -- Se a bolsa ficou invisível (Transparency = 1), remover ESP
+            if not isMoneyVisible(bag) then
+                limparESPMoney(bag)
                 return
             end
             
             local myChar = player.Character
             if myChar and myChar:FindFirstChild("HumanoidRootPart") then
-                local distance = math.floor((myChar.HumanoidRootPart.Position - obj.Position).Magnitude)
-                distLabel.Text = string.format("{ %d studs }", distance)
+                local distance = math.floor((myChar.HumanoidRootPart.Position - bag.Position).Magnitude)
+                distLabel.Text = string.format("%d studs", distance)
+            end
+        end)
+
+        -- Monitorar a propriedade Transparency da part em tempo real
+        if transparencyConnections[bag] then pcall(function() transparencyConnections[bag]:Disconnect() end) end
+        transparencyConnections[bag] = bag:GetPropertyChangedSignal("Transparency"):Connect(function()
+            if isMoneyVisible(bag) then
+                -- Transparency = 0 (bolsa visível, tem dinheiro) → ligar ESP
+                if not espObjectsMoney[bag] and _G.EspMoneyTrack then
+                    criarESPMoney(bag, locationName)
+                end
+            else
+                -- Transparency = 1 (bolsa invisível, sem dinheiro) → desligar ESP
+                limparESPMoney(bag)
             end
         end)
     end
 
+    local function isMoneyBag(obj)
+        -- Verifica se é uma duffelbagmeshzinha dentro de um filho de Banco.Malotes ou Cassino.Malotes
+        if obj.Name ~= "duffelbagmeshzinha" then return nil end
+        
+        local parent = obj.Parent
+        if not parent then return nil end
+        
+        -- Verificar se o parent é um filho de Banco.Malotes
+        local bancoMalotes = Workspace:FindFirstChild("Banco") and Workspace.Banco:FindFirstChild("Malotes")
+        if bancoMalotes and parent and parent.Parent == bancoMalotes then return "BANCO" end
+        
+        -- Verificar se o parent é um filho de Cassino.Malotes
+        local cassinoMalotes = Workspace:FindFirstChild("Cassino") and Workspace.Cassino:FindFirstChild("Malotes")
+        if cassinoMalotes and parent and parent.Parent == cassinoMalotes then return "CASSINO" end
+        
+        return nil
+    end
+
+    -- Limpar referências antigas de objetos que já não existem mais no jogo
+    local function limparReferenciasAntigas()
+        for obj, _ in pairs(espObjectsMoney) do
+            if not obj or not obj.Parent then
+                limparESPMoney(obj)
+            end
+        end
+        for obj, _ in pairs(transparencyConnections) do
+            if not obj or not obj.Parent then
+                limparESPMoney(obj)
+            end
+        end
+    end
+
+    -- Rescan periódico: varre TODAS as bolsas novamente para corrigir qualquer bug de ESP
+    local function rescanBolsas()
+        if not _G.EspMoneyTrack then return end
+        
+        -- Limpar referências de objetos que foram destruídos no servidor
+        limparReferenciasAntigas()
+        
+        -- Buscar TODAS as bolsas atuais no servidor
+        local moneyBags = getMoneyBags()
+        
+        for _, info in ipairs(moneyBags) do
+            local bag = info.part
+            local location = info.location
+            
+            -- Se a bolsa está visível e não tem ESP, criar
+            if isMoneyVisible(bag) and not espObjectsMoney[bag] then
+                criarESPMoney(bag, location)
+            end
+            
+            -- Se a bolsa está invisível e tem ESP, remover
+            if not isMoneyVisible(bag) and espObjectsMoney[bag] then
+                limparESPMoney(bag)
+            end
+            
+            -- Garantir que o monitoramento de Transparency está ativo
+            if not transparencyConnections[bag] then
+                transparencyConnections[bag] = bag:GetPropertyChangedSignal("Transparency"):Connect(function()
+                    if isMoneyVisible(bag) then
+                        if not espObjectsMoney[bag] and _G.EspMoneyTrack then
+                            criarESPMoney(bag, location)
+                        end
+                    else
+                        limparESPMoney(bag)
+                    end
+                end)
+            end
+        end
+    end
+
     local function gerenciarMoneyESP()
         if _G.EspMoneyTrack then
-            local function isMoney(obj)
-                return obj.Name == "duffelbagmeshzinha" and (obj:IsDescendantOf(Workspace:FindFirstChild("Cassino")) or obj:IsDescendantOf(Workspace:FindFirstChild("Banco")))
+            -- Limpar ESPs existentes primeiro
+            for obj, _ in pairs(espObjectsMoney) do limparESPMoney(obj) end
+            for obj, _ in pairs(transparencyConnections) do
+                pcall(function() transparencyConnections[obj]:Disconnect() end)
+                transparencyConnections[obj] = nil
             end
 
-            for _, obj in ipairs(Workspace:GetDescendants()) do
-                if isMoney(obj) then criarESPMoney(obj) end
+            -- Buscar TODAS as duffelbagmeshzinha nos paths corretos
+            local moneyBags = getMoneyBags()
+
+            -- Criar ESP e monitorar Transparency para CADA bolsa individualmente
+            for _, info in ipairs(moneyBags) do
+                local bag = info.part
+                local location = info.location
+                
+                if isMoneyVisible(bag) then
+                    criarESPMoney(bag, location)
+                end
+                
+                -- Conectar monitoramento de Transparency
+                transparencyConnections[bag] = bag:GetPropertyChangedSignal("Transparency"):Connect(function()
+                    if isMoneyVisible(bag) then
+                        if not espObjectsMoney[bag] and _G.EspMoneyTrack then
+                            criarESPMoney(bag, location)
+                        end
+                    else
+                        limparESPMoney(bag)
+                    end
+                end)
             end
 
+            -- Conexão para novas bolsas aparecendo
             if moneyAddedConnection then moneyAddedConnection:Disconnect() end
             moneyAddedConnection = Workspace.DescendantAdded:Connect(function(obj)
                 task.wait(0.5)
-                if isMoney(obj) then criarESPMoney(obj) end
+                local locationName = isMoneyBag(obj)
+                if locationName and _G.EspMoneyTrack then
+                    if isMoneyVisible(obj) and not espObjectsMoney[obj] then
+                        criarESPMoney(obj, locationName)
+                    end
+                    if not transparencyConnections[obj] then
+                        transparencyConnections[obj] = obj:GetPropertyChangedSignal("Transparency"):Connect(function()
+                            if isMoneyVisible(obj) then
+                                if not espObjectsMoney[obj] and _G.EspMoneyTrack then
+                                    criarESPMoney(obj, locationName)
+                                end
+                            else
+                                limparESPMoney(obj)
+                            end
+                        end)
+                    end
+                end
             end)
 
+            -- Conexão para remoção de bolsas
             if moneyRemovedConnection then moneyRemovedConnection:Disconnect() end
             moneyRemovedConnection = Workspace.DescendantRemoving:Connect(function(obj)
                 limparESPMoney(obj)
             end)
+
+            -- Loop de rescan periódico a cada 2 segundos para corrigir bugs
+            if moneyRescanThread then pcall(function() task.cancel(moneyRescanThread) end) end
+            moneyRescanThread = task.spawn(function()
+                while _G.EspMoneyTrack do
+                    task.wait(2)
+                    pcall(function()
+                        rescanBolsas()
+                    end)
+                end
+            end)
         else
+            -- Desativar ESP
+            if moneyRescanThread then pcall(function() task.cancel(moneyRescanThread) end); moneyRescanThread = nil end
             if moneyAddedConnection then moneyAddedConnection:Disconnect(); moneyAddedConnection = nil end
             if moneyRemovedConnection then moneyRemovedConnection:Disconnect(); moneyRemovedConnection = nil end
             for obj, _ in pairs(espObjectsMoney) do limparESPMoney(obj) end
+            for obj, _ in pairs(transparencyConnections) do
+                pcall(function() transparencyConnections[obj]:Disconnect() end)
+                transparencyConnections[obj] = nil
+            end
         end
     end
 
